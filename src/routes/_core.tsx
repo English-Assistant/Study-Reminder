@@ -1,0 +1,160 @@
+import {
+  createFileRoute,
+  Outlet,
+  Link as RouterLink,
+  useRouterState,
+} from '@tanstack/react-router';
+import { Layout, Menu, Avatar, Typography, Space, theme } from 'antd';
+import type { MenuProps } from 'antd';
+
+// Import downloaded icons. Ensure paths are correct relative to this file or use path aliases.
+// These are illustrative paths, adjust if your alias or structure is different.
+import AboutPageLogo from '@/assets/icons/about-page-logo.svg?react';
+import AvatarPlaceholder from '@/assets/images/avatar-placeholder.png';
+import SidebarDashboardIcon from '@/assets/icons/sidebar-dashboard-icon.svg?react';
+import SidebarCalendarIcon from '@/assets/icons/sidebar-calendar-icon.svg?react';
+import SidebarSettingsIcon from '@/assets/icons/sidebar-settings-icon.svg?react';
+import SidebarInfoIcon from '@/assets/icons/sidebar-info-icon.svg?react';
+
+const { Header, Content, Sider } = Layout;
+const { Title } = Typography;
+
+const HEADER_HEIGHT = 64; // Assuming default AntD Header height
+const SIDER_WIDTH = 256; // As specified in current Sider props
+
+type MenuItem = Required<MenuProps>['items'][number];
+
+function getItem(
+  label: React.ReactNode,
+  key: React.Key,
+  icon?: React.ReactNode,
+  children?: MenuItem[],
+  type?: 'group',
+): MenuItem {
+  return {
+    key,
+    icon,
+    children,
+    label,
+    type,
+  } as MenuItem;
+}
+
+const menuItems: MenuItem[] = [
+  getItem(
+    <RouterLink to="/dashboard">仪表盘</RouterLink>,
+    '/dashboard',
+    <SidebarDashboardIcon />,
+  ),
+  getItem(
+    <RouterLink to="/add-course">添加复习计划</RouterLink>,
+    '/add-course',
+    <SidebarCalendarIcon />,
+  ),
+  getItem(
+    <RouterLink to="/manage-courses">课程管理</RouterLink>,
+    '/manage-courses',
+    <SidebarSettingsIcon />,
+  ),
+  getItem(
+    <RouterLink to="/set-up">设置</RouterLink>,
+    '/set-up',
+    <SidebarSettingsIcon />,
+  ),
+  getItem(
+    <RouterLink to="/about">关于</RouterLink>,
+    '/about',
+    <SidebarInfoIcon />,
+  ),
+];
+
+export const Route = createFileRoute('/_core')({
+  component: CoreLayoutComponent,
+});
+
+function CoreLayoutComponent() {
+  const {
+    token: { colorBgContainer, borderRadiusLG },
+  } = theme.useToken();
+
+  const currentPath = useRouterState({ select: (s) => s.location.pathname });
+
+  return (
+    <Layout style={{ minHeight: '100vh' }}>
+      <Header
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          backgroundColor: '#fff',
+          padding: '0 24px',
+          borderBottom: '1px solid #EBEBEA',
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          width: '100%',
+          zIndex: 101,
+          height: `${HEADER_HEIGHT}px`,
+        }}
+      >
+        <Space size="middle">
+          <AboutPageLogo style={{ height: '37px', width: '43px' }} />
+          <Title level={4} style={{ margin: 0, color: '#242524' }}>
+            Study Reminder
+          </Title>
+        </Space>
+        <Avatar src={AvatarPlaceholder} size={32} />
+      </Header>
+      <Layout
+        style={{
+          paddingTop: `${HEADER_HEIGHT}px`,
+          display: 'flex',
+          flexDirection: 'row',
+        }}
+      >
+        <Sider
+          width={SIDER_WIDTH}
+          style={{
+            background: colorBgContainer,
+            borderRight: '1px solid #EBEBEA',
+            position: 'fixed',
+            left: 0,
+            top: `${HEADER_HEIGHT}px`,
+            height: `calc(100vh - ${HEADER_HEIGHT}px)`,
+            overflowY: 'auto',
+            zIndex: 100,
+          }}
+        >
+          <Menu
+            mode="inline"
+            selectedKeys={[currentPath]}
+            style={{ height: '100%', borderRight: 0, paddingTop: '8px' }}
+            items={menuItems}
+          />
+        </Sider>
+        <Layout
+          style={{
+            marginLeft: `${SIDER_WIDTH}px`,
+            width: `calc(100% - ${SIDER_WIDTH}px)`,
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <Content
+            style={{
+              padding: 24,
+              margin: 0,
+              background: colorBgContainer,
+              borderRadius: borderRadiusLG,
+              overflowY: 'auto',
+              flexGrow: 1,
+            }}
+          >
+            <Outlet />
+          </Content>
+        </Layout>
+      </Layout>
+    </Layout>
+  );
+}

@@ -4,125 +4,139 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+// Prisma 客户端生成器配置
 generator client {
-  provider = "prisma-client-js"
-  output   = "../generated/prisma"
+  provider = "prisma-client-js" // 指定生成 JavaScript/TypeScript 客户端
+  output   = "../generated/prisma" // 指定生成客户端的输出路径
 }
 
+// 数据源配置
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "postgresql" // 指定数据库类型为 PostgreSQL
+  url      = env("DATABASE_URL") // 从环境变量 DATABASE_URL 读取数据库连接字符串
 }
 
-// --------------- ENUMS ------------------
+// --------------- 枚举类型 (ENUMS) ------------------
 
+// 复习规则的时间单位
 enum ReviewRuleUnit {
-  MINUTES
-  HOURS
-  DAYS
-  MONTHS
+  MINUTES // 分钟
+  HOURS // 小时
+  DAYS // 天
+  MONTHS // 月
 }
 
+// 复习规则的重复类型
 enum ReviewRuleRepetition {
-  ONCE
-  LOOP
+  ONCE // 一次性
+  LOOP // 循环
 }
 
+// 学习活动类型
 enum LearningActivityType {
   INITIAL_LEARNING // 初始学习一个课程/单元
   REVIEW_COMPLETED // 完成一次复习
-  COURSE_COMPLETED // 标记整个课程已学完 (这个也可以通过 UserCourseCompletion 实现)
+  COURSE_COMPLETED // 标记整个课程已学完 (这个也可以通过 UserCourseCompletion 实现，但此处更侧重活动记录)
 }
 
-// --------------- MODELS ------------------
+// --------------- 数据模型 (MODELS) ------------------
 
+// 用户模型
 model User {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  password  String // Will be a hashed password
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String   @id @default(uuid()) // 用户ID，主键，默认为 UUID
+  username  String   @unique // 用户名，唯一
+  password  String // 密码 (存储时应为哈希后的密码)
+  createdAt DateTime @default(now()) // 创建时间，默认为当前时间
+  updatedAt DateTime @updatedAt // 更新时间，自动更新
 
-  courses               Course[]
-  reviewRules           ReviewRule[]
-  learningActivities    LearningActivity[]
-  userCourseCompletions UserCourseCompletion[] // Corrected: a course can be completed by multiple users
-  manualReviewEntries   ManualReviewEntry[]
+  // 关联关系
+  courses               Course[] // 用户创建的课程列表
+  reviewRules           ReviewRule[] // 用户自定义的复习规则列表 (如果允许用户覆盖全局规则)
+  learningActivities    LearningActivity[] // 用户的学习活动记录
+  userCourseCompletions UserCourseCompletion[] // 用户完成课程的记录
+  manualReviewEntries   ManualReviewEntry[] // 用户手动添加的复习条目
 }
 
+// 课程模型
 model Course {
-  id          String   @id @default(uuid())
-  name        String
-  description String? // Optional description
-  color       String // Optional color hex code or name
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isDefault   Boolean  @default(false) // Indicates if this is the default template course for global review rules
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id          String   @id @default(uuid()) // 课程ID，主键，默认为 UUID
+  name        String // 课程名称
+  description String? // 课程描述 (可选)
+  color       String // 课程颜色标记 (例如十六进制颜色码或颜色名称)
+  userId      String // 创建该课程的用户ID (外键)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade) // 关联到 User 模型，用户删除时级联删除其课程
+  isDefault   Boolean  @default(false) // 是否为全局复习规则的默认模板课程 (例如，用于全局规则的那个特殊"课程")
+  createdAt   DateTime @default(now()) // 创建时间
+  updatedAt   DateTime @updatedAt // 更新时间
 
-  learningActivities    LearningActivity[]
-  userCourseCompletions UserCourseCompletion[] // A course can have multiple completion status per user
-  manualReviewEntries   ManualReviewEntry[]
-  rules                 ReviewRule[] // Added back-relation for review rules
+  // 关联关系
+  learningActivities    LearningActivity[] // 与该课程相关的学习活动
+  userCourseCompletions UserCourseCompletion[] // 用户完成此课程的记录
+  manualReviewEntries   ManualReviewEntry[] // 与该课程相关的手动复习条目
+  rules                 ReviewRule[] // 应用于该课程的复习规则
 }
 
+// 复习规则模型
 model ReviewRule {
-  id           String               @id @default(uuid())
-  value        Int // e.g., 20, 1, 2
-  unit         ReviewRuleUnit // MINUTES, HOURS, DAYS, MONTHS
-  repetition   ReviewRuleRepetition // ONCE, LOOP
-  description  String? // Optional: e.g., "艾宾浩斯第1周期"
-  isSystemRule Boolean              @default(true) // To differentiate between system default rules and user-added global rules
-  isEnabled    Boolean              @default(true) // Allows admins/system to disable a global rule
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
+  id           String               @id @default(uuid()) // 规则ID，主键，默认为 UUID
+  value        Int // 时间间隔值 (例如：20, 1, 2)
+  unit         ReviewRuleUnit // 时间单位 (MINUTES, HOURS, DAYS, MONTHS)
+  repetition   ReviewRuleRepetition // 重复类型 (ONCE, LOOP)
+  description  String? // 规则描述 (可选，例如 "艾宾浩斯第1周期")
+  isSystemRule Boolean              @default(true) // 是否为系统默认规则 (用于区分系统规则和用户添加的全局规则)
+  isEnabled    Boolean              @default(true) // 管理员/系统是否启用此全局规则
+  createdAt    DateTime             @default(now()) // 创建时间
+  updatedAt    DateTime             @updatedAt // 更新时间
 
-  User   User?   @relation(fields: [userId], references: [id])
-  userId String? // User who might have customized this rule, or null if purely system/course global
+  // 关联关系
+  User   User?   @relation(fields: [userId], references: [id]) // 可选，关联到创建此自定义规则的用户 (如果为 null，则为系统或课程全局规则)
+  userId String? // 外键，指向 User 模型
 
-  courseId String // Foreign key to Course
-  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  courseId String // 外键，指向 Course 模型，表示此规则应用于哪个课程
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade) // 关联到 Course 模型，课程删除时级联删除其规则
 }
 
+// 学习活动模型
 model LearningActivity {
-  id                String               @id @default(uuid())
-  userId            String
-  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  courseId          String
-  course            Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  activityType      LearningActivityType // e.g., INITIAL_LEARNING, REVIEW_COMPLETED
-  activityTimestamp DateTime             @default(now()) // When this activity occurred
-  notes             String? // Optional notes for this specific activity
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  id                String               @id @default(uuid()) // 活动ID，主键，默认为 UUID
+  userId            String // 用户ID (外键)
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade) // 关联到 User 模型，用户删除时级联删除其活动
+  courseId          String // 课程ID (外键)
+  course            Course               @relation(fields: [courseId], references: [id], onDelete: Cascade) // 关联到 Course 模型，课程删除时级联删除其活动
+  activityType      LearningActivityType // 活动类型 (例如: INITIAL_LEARNING, REVIEW_COMPLETED)
+  activityTimestamp DateTime             @default(now()) // 活动发生的时间戳
+  notes             String? // 关于此活动的备注 (可选)
+  createdAt         DateTime             @default(now()) // 创建时间
+  updatedAt         DateTime             @updatedAt // 更新时间
 }
 
+// 用户课程完成情况模型
 model UserCourseCompletion {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  courseId    String
-  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  completedAt DateTime @default(now())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id          String   @id @default(uuid()) // 完成记录ID，主键，默认为 UUID
+  userId      String // 用户ID (外键)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade) // 关联到 User 模型
+  courseId    String // 课程ID (外键)
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade) // 关联到 Course 模型
+  completedAt DateTime @default(now()) // 课程完成时间
+  createdAt   DateTime @default(now()) // 记录创建时间
+  updatedAt   DateTime @updatedAt // 记录更新时间
 
-  @@unique([userId, courseId]) // A user can complete a course only once
+  @@unique([userId, courseId]) // 确保一个用户对于一个课程只有一条完成记录
 }
 
+// 手动复习条目模型
 model ManualReviewEntry {
-  id          String    @id @default(uuid())
-  userId      String
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  courseId    String // Optional if a manual review can be generic
-  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade) // SetNull if course deleted
-  title       String
-  description String?
-  reviewDate  DateTime // Date part of when it's planned
-  reviewTime  String? // Specific time, e.g., "14:30". Could also be DateTime if preferred.
-  isCompleted Boolean   @default(false)
-  completedAt DateTime? // Timestamp when it was marked completed
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id          String    @id @default(uuid()) // 条目ID，主键，默认为 UUID
+  userId      String // 用户ID (外键)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade) // 关联到 User 模型
+  courseId    String // 课程ID (外键), 与特定课程关联
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade) // 关联到 Course 模型
+  title       String // 复习条目标题
+  description String? // 复习条目描述 (可选)
+  reviewDate  DateTime // 计划复习的日期
+  reviewTime  String? // 具体的复习时间 (可选, 例如 "14:30")
+  isCompleted Boolean   @default(false) // 是否已完成
+  completedAt DateTime? // 完成时间戳 (可选)
+  createdAt   DateTime  @default(now()) // 创建时间
+  updatedAt   DateTime  @updatedAt // 更新时间
 }

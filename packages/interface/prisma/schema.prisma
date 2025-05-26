@@ -1,0 +1,128 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --------------- ENUMS ------------------
+
+enum ReviewRuleUnit {
+  MINUTES
+  HOURS
+  DAYS
+  MONTHS
+}
+
+enum ReviewRuleRepetition {
+  ONCE
+  LOOP
+}
+
+enum LearningActivityType {
+  INITIAL_LEARNING // 初始学习一个课程/单元
+  REVIEW_COMPLETED // 完成一次复习
+  COURSE_COMPLETED // 标记整个课程已学完 (这个也可以通过 UserCourseCompletion 实现)
+}
+
+// --------------- MODELS ------------------
+
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  password  String // Will be a hashed password
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  courses               Course[]
+  reviewRules           ReviewRule[]
+  learningActivities    LearningActivity[]
+  userCourseCompletions UserCourseCompletion[] // Corrected: a course can be completed by multiple users
+  manualReviewEntries   ManualReviewEntry[]
+}
+
+model Course {
+  id          String   @id @default(uuid())
+  name        String
+  description String? // Optional description
+  color       String // Optional color hex code or name
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDefault   Boolean  @default(false) // Indicates if this is the default template course for global review rules
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  learningActivities    LearningActivity[]
+  userCourseCompletions UserCourseCompletion[] // A course can have multiple completion status per user
+  manualReviewEntries   ManualReviewEntry[]
+  rules                 ReviewRule[] // Added back-relation for review rules
+}
+
+model ReviewRule {
+  id           String               @id @default(uuid())
+  value        Int // e.g., 20, 1, 2
+  unit         ReviewRuleUnit // MINUTES, HOURS, DAYS, MONTHS
+  repetition   ReviewRuleRepetition // ONCE, LOOP
+  description  String? // Optional: e.g., "艾宾浩斯第1周期"
+  isSystemRule Boolean              @default(true) // To differentiate between system default rules and user-added global rules
+  isEnabled    Boolean              @default(true) // Allows admins/system to disable a global rule
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  User   User?   @relation(fields: [userId], references: [id])
+  userId String? // User who might have customized this rule, or null if purely system/course global
+
+  courseId String // Foreign key to Course
+  course   Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+}
+
+model LearningActivity {
+  id                String               @id @default(uuid())
+  userId            String
+  user              User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId          String
+  course            Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  activityType      LearningActivityType // e.g., INITIAL_LEARNING, REVIEW_COMPLETED
+  activityTimestamp DateTime             @default(now()) // When this activity occurred
+  notes             String? // Optional notes for this specific activity
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+}
+
+model UserCourseCompletion {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  completedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, courseId]) // A user can complete a course only once
+}
+
+model ManualReviewEntry {
+  id          String    @id @default(uuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  courseId    String // Optional if a manual review can be generic
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade) // SetNull if course deleted
+  title       String
+  description String?
+  reviewDate  DateTime // Date part of when it's planned
+  reviewTime  String? // Specific time, e.g., "14:30". Could also be DateTime if preferred.
+  isCompleted Boolean   @default(false)
+  completedAt DateTime? // Timestamp when it was marked completed
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}

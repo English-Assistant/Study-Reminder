@@ -1,0 +1,8 @@
+---
+description: 在执行任务的时候触发
+globs:
+alwaysApply: false
+---
+思考和回复请使用中文，此外如果生成的文件存在注释也请使用中文。当前仓库为pnpm + monopore的结构。
+
+

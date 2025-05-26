@@ -2,19 +2,20 @@ import {
   createFileRoute,
   Outlet,
   Link as RouterLink,
+  useNavigate,
   useRouterState,
 } from '@tanstack/react-router';
-import { Layout, Menu, Avatar, Typography, Space, theme } from 'antd';
+import { Layout, Menu, Avatar, Typography, Space, theme, Dropdown } from 'antd';
 import type { MenuProps } from 'antd';
 
 // Import downloaded icons. Ensure paths are correct relative to this file or use path aliases.
 // These are illustrative paths, adjust if your alias or structure is different.
 import AboutPageLogo from '@/assets/icons/about-page-logo.svg?react';
-import AvatarPlaceholder from '@/assets/images/avatar-placeholder.png';
 import SidebarDashboardIcon from '@/assets/icons/sidebar-dashboard-icon.svg?react';
 import SidebarCalendarIcon from '@/assets/icons/sidebar-calendar-icon.svg?react';
 import SidebarSettingsIcon from '@/assets/icons/sidebar-settings-icon.svg?react';
 import SidebarInfoIcon from '@/assets/icons/sidebar-info-icon.svg?react';
+import { useUserStore } from '@/stores/user.store';
 
 const { Header, Content, Sider } = Layout;
 const { Title } = Typography;
@@ -78,6 +79,9 @@ function CoreLayoutComponent() {
   } = theme.useToken();
 
   const currentPath = useRouterState({ select: (s) => s.location.pathname });
+  const user = useUserStore((s) => s.user);
+  const logout = useUserStore((s) => s.actions.logout);
+  const navigate = useNavigate();
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -104,7 +108,25 @@ function CoreLayoutComponent() {
             Study Reminder
           </Title>
         </Space>
-        <Avatar src={AvatarPlaceholder} size={32} />
+
+        <Dropdown
+          menu={{
+            items: [
+              {
+                label: '退出登录',
+                key: 'logout',
+                onClick: () => {
+                  logout();
+                  navigate({ to: '/log-on' });
+                },
+              },
+            ],
+          }}
+        >
+          <Avatar className="cursor-pointer" size={32}>
+            {user?.username.slice(0, 1)}
+          </Avatar>
+        </Dropdown>
       </Header>
       <Layout
         style={{

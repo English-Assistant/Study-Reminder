@@ -1,19 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, Button, Space, ColorPicker } from 'antd';
 import type { Color } from 'antd/es/color-picker';
-
-// Exporting this interface so it can be used in page.tsx
-export interface CourseFormData {
-  name: string;
-  description: string;
-  color: string;
-}
+import type { Course } from '@y/interface/common/prisma.type.ts';
 
 interface CourseFormModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (values: CourseFormData) => void;
-  initialData?: CourseFormData | null;
+  onSubmit: (values: Course) => void;
+  initialData?: Course | null;
 }
 
 const predefinedColors = [
@@ -27,33 +21,50 @@ const predefinedColors = [
   '#F97316', // Orange
 ];
 
+// Helper function to generate a truly random hex color
+const generateRandomHexColor = (): string => {
+  let color = '#';
+  for (let i = 0; i < 6; i++) {
+    color += Math.floor(Math.random() * 16).toString(16);
+  }
+  return color.toUpperCase(); // Ensure uppercase hex, e.g., #AABBCC
+};
+
 const CourseFormModal: React.FC<CourseFormModalProps> = ({
   open,
   onClose,
   onSubmit,
   initialData,
 }) => {
-  const [form] = Form.useForm<CourseFormData>();
+  const [form] = Form.useForm<Course>();
 
-  // colorValue can be Color object or string. Store hex string in form.
-  const [colorValue, setColorValue] = useState<Color | string>(
-    () => initialData?.color || predefinedColors[0],
-  );
+  const [colorValue, setColorValue] = useState<Color | string>(() => {
+    if (initialData?.color) {
+      return initialData.color;
+    }
+    // For new course, generate a truly random color initially
+    return generateRandomHexColor();
+  });
 
   useEffect(() => {
     if (open) {
       if (initialData) {
         form.setFieldsValue({
           name: initialData.name,
-          description: initialData.description,
+          description: initialData.description || undefined,
           color: initialData.color,
         });
         setColorValue(initialData.color);
       } else {
+        // New course: reset fields and set a truly random default color
         form.resetFields();
-        const defaultColor = predefinedColors[0];
-        form.setFieldsValue({ color: defaultColor, name: '', description: '' });
-        setColorValue(defaultColor);
+        const randomColor = generateRandomHexColor(); // Generate a new random color
+        form.setFieldsValue({
+          name: '',
+          description: '',
+          color: randomColor,
+        });
+        setColorValue(randomColor);
       }
     }
   }, [initialData, form, open]);
@@ -82,6 +93,11 @@ const CourseFormModal: React.FC<CourseFormModalProps> = ({
     form.setFieldsValue({ color: hexColor }); // Update form with hex string
   };
 
+  const handleRandomColorButtonClick = () => {
+    const randomColor = generateRandomHexColor();
+    handleColorChange(randomColor); // Use existing handler to update state and form
+  };
+
   return (
     <Modal
       title={initialData ? '编辑课程' : '添加新课程'}
@@ -104,10 +120,10 @@ const CourseFormModal: React.FC<CourseFormModalProps> = ({
         initialValues={{
           name: initialData?.name || '',
           description: initialData?.description || '',
-          color: initialData?.color || predefinedColors[0],
+          color: initialData?.color || colorValue, // Uses the stateful colorValue (random for new)
         }}
       >
-        <Form.Item
+        <Form.Item<Course>
           name="name"
           label={<span>课程名称</span>}
           rules={[{ required: true, message: '请输入课程名称!' }]}
@@ -115,15 +131,11 @@ const CourseFormModal: React.FC<CourseFormModalProps> = ({
           <Input placeholder="请输入课程名称" />
         </Form.Item>
 
-        <Form.Item
-          name="description"
-          label={<span>课程描述</span>}
-          rules={[{ required: true, message: '请输入课程描述!' }]}
-        >
+        <Form.Item<Course> name="description" label={<span>课程描述</span>}>
           <Input.TextArea rows={4} placeholder="请输入课程描述" />
         </Form.Item>
 
-        <Form.Item
+        <Form.Item<Course>
           name="color"
           label={<span>课程颜色</span>}
           rules={[{ required: true, message: '请选择一个课程颜色!' }]}
@@ -148,7 +160,7 @@ const CourseFormModal: React.FC<CourseFormModalProps> = ({
                       (typeof colorValue === 'string'
                         ? colorValue
                         : (colorValue as Color).toHexString()) === color
-                        ? '2px solid #4F46E5'
+                        ? '2px solid #4F46E5' // Active border color
                         : '2px solid transparent',
                     padding: 0,
                   }}
@@ -160,6 +172,7 @@ const CourseFormModal: React.FC<CourseFormModalProps> = ({
                 onChange={handleColorChange}
                 showText
               />
+              <Button onClick={handleRandomColorButtonClick}>随机颜色</Button>
             </Space>
           </div>
         </Form.Item>

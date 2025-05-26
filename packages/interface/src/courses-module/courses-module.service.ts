@@ -18,7 +18,7 @@ export class CoursesModuleService {
   ): Promise<Course> {
     const { title, ...restOfDto } = createCourseDto;
     // 不允许用户创建 isDefault 为 true 的课程，这个由 ReviewSettingsService 内部管理
-    return this.prisma.course.create({
+    return await this.prisma.course.create({
       data: {
         name: title,
         ...restOfDto,
@@ -29,7 +29,7 @@ export class CoursesModuleService {
   }
 
   async findAll(userId: string): Promise<Course[]> {
-    return this.prisma.course.findMany({
+    return await this.prisma.course.findMany({
       where: {
         userId,
         isDefault: false, // 通常不返回作为全局模板的课程
@@ -72,9 +72,23 @@ export class CoursesModuleService {
       throw new NotFoundException(`ID 为 ${id} 的课程不存在或您无权访问`);
     }
 
-    return this.prisma.course.update({
+    const { title, ...restOfDto } = updateCourseDto;
+    const dataToUpdate: Partial<
+      Omit<
+        Course,
+        'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isDefault' | 'user'
+      >
+    > = {
+      ...restOfDto, // This will include description and color if they are present
+    };
+
+    if (title !== undefined) {
+      dataToUpdate.name = title; // Map title from DTO to name for Prisma
+    }
+
+    return await this.prisma.course.update({
       where: { id },
-      data: updateCourseDto,
+      data: dataToUpdate,
     });
   }
 
@@ -87,7 +101,7 @@ export class CoursesModuleService {
 
     // TODO: 考虑删除课程时的级联操作，例如相关的学习活动、复习规则等是否也应删除或处理。
     // 目前 Prisma Schema 中定义了 onDelete: Cascade，所以相关联的记录会被自动删除。
-    return this.prisma.course.delete({
+    return await this.prisma.course.delete({
       where: { id },
     });
   }

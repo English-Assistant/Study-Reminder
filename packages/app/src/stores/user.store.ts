@@ -7,14 +7,14 @@ import {
 
 // 从后端导入 User 类型
 // 假设 prisma.type.ts 导出了名为 User 的类型
-import { User as BackendUserType } from '@y/interface/common/prisma.type.ts';
+import type { User as BackendUserType } from '@y/interface/common/prisma.type.ts';
 
 // 使用导入的后端 User 类型，如果需要，可以进行调整或扩展
 // interface User extends BackendUserType {
 //   // 如果前端需要额外字段，可以在这里扩展
 // }
 // 为简单起见，直接使用 BackendUserType 并命名为 User
-type User = BackendUserType;
+type User = Omit<BackendUserType, 'password'>;
 
 interface UserData {
   user: User | null;

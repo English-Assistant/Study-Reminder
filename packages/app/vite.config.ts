@@ -24,4 +24,12 @@ export default defineConfig({
       bundler: 'vite',
     }),
   ],
+  server: {
+    proxy: {
+      '/api/v1': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+      },
+    },
+  },
 });

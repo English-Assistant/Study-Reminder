@@ -19,7 +19,7 @@ import { Course } from '../../generated/prisma'; // 根据实际 Prisma Client �
 // 定义请求中 user 对象的接口
 interface AuthenticatedRequest extends Request {
   user: {
-    userId: string;
+    id: string;
     username: string;
   };
 }
@@ -34,24 +34,24 @@ export class CoursesModuleController {
     @Body() createCourseDto: CreateCourseDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<Course> {
-    // req.user 在 JwtAuthGuard 中被赋值，包含 { userId: string, username: string }
-    const userId = req.user.userId;
-    return this.coursesService.create(createCourseDto, userId);
+    // req.user 在 JwtAuthGuard 中被赋值
+    const userIdFromAuth = req.user.id;
+    return this.coursesService.create(createCourseDto, userIdFromAuth);
   }
 
   @Get()
   async findAll(@Req() req: AuthenticatedRequest): Promise<Course[]> {
-    const userId = req.user.userId;
-    return this.coursesService.findAll(userId);
+    const userIdFromAuth = req.user.id;
+    return this.coursesService.findAll(userIdFromAuth);
   }
 
   @Get(':id')
   async findOne(
     @Param('id', new ParseUUIDPipe()) id: string,
     @Req() req: AuthenticatedRequest,
-  ): Promise<Course | null> {
-    const userId = req.user.userId;
-    return this.coursesService.findOne(id, userId);
+  ) {
+    const userIdFromAuth = req.user.id;
+    return this.coursesService.findOne(id, userIdFromAuth);
   }
 
   @Patch(':id')
@@ -60,8 +60,8 @@ export class CoursesModuleController {
     @Body() updateCourseDto: UpdateCourseDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<Course> {
-    const userId = req.user.userId;
-    return this.coursesService.update(id, updateCourseDto, userId);
+    const userIdFromAuth = req.user.id;
+    return this.coursesService.update(id, updateCourseDto, userIdFromAuth);
   }
 
   @Delete(':id')
@@ -69,7 +69,7 @@ export class CoursesModuleController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<Course> {
-    const userId = req.user.userId;
-    return this.coursesService.remove(id, userId);
+    const userIdFromAuth = req.user.id;
+    return this.coursesService.remove(id, userIdFromAuth);
   }
 }

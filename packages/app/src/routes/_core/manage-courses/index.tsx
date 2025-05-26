@@ -9,16 +9,28 @@ import {
   Space,
   Button,
   Modal as AntModal,
+  App as AntApp,
+  Spin,
 } from 'antd';
 import {
   SearchOutlined,
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
+  LoadingOutlined,
 } from '@ant-design/icons';
 import { useState } from 'react';
 import CourseFormModal from './-CourseFormModal';
-import type { CourseFormData } from './-CourseFormModal';
+import type { CreateCourseDto } from '@y/interface/courses-module/dto/create-course.dto.ts';
+import type { UpdateCourseDto } from '@y/interface/courses-module/dto/update-course.dto.ts';
+import { useRequest } from 'ahooks';
+import {
+  getAllCourses,
+  createCourse,
+  updateCourse,
+  deleteCourse,
+} from '@/apis/courses';
+import type { Course as PrismaCourse } from '@y/interface/common/prisma.type.ts';
 
 const { Content } = Layout;
 const { Title, Text } = Typography;
@@ -27,81 +39,88 @@ export const Route = createFileRoute('/_core/manage-courses/')({
   component: ManageCoursesComponent,
 });
 
-interface DisplayCourse extends CourseFormData {
-  id: string;
-}
-
-const initialCourses: DisplayCourse[] = [
-  {
-    id: '1',
-    name: '高等数学',
-    description: '学习微积分、线性代数等基础数学知识',
-    color: '#2563EB',
-  },
-  {
-    id: '2',
-    name: '大学物理',
-    description: '探索力学、热学、电磁学等物理原理',
-    color: '#7C3AED',
-  },
-  {
-    id: '3',
-    name: '程序设计',
-    description: '掌握编程基础和算法设计方法',
-    color: '#059669',
-  },
-  {
-    id: '4',
-    name: '数据结构',
-    description: '学习常见数据结构和算法实现',
-    color: '#DC2626',
-  },
-  {
-    id: '5',
-    name: '计算机网络',
-    description: '理解网络协议和系统架构',
-    color: '#EA580C',
-  },
-  {
-    id: '6',
-    name: '操作系统',
-    description: '深入学习操作系统原理和实现',
-    color: '#D97706',
-  },
-];
-
 function ManageCoursesComponent() {
-  const [courses, setCourses] = useState<DisplayCourse[]>(initialCourses);
+  const { message } = AntApp.useApp();
+
+  const {
+    data: courses,
+    loading: loadingCourses,
+    refresh: refreshCourses,
+    error: coursesError,
+  } = useRequest<PrismaCourse[], []>(getAllCourses);
+
   const [searchText, setSearchText] = useState('');
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
-  const [courseToDelete, setCourseToDelete] = useState<DisplayCourse | null>(
+  const [courseToDelete, setCourseToDelete] = useState<PrismaCourse | null>(
     null,
   );
 
   const [isCourseModalOpen, setIsCourseModalOpen] = useState(false);
   const [editingCourseData, setEditingCourseData] =
-    useState<DisplayCourse | null>(null);
+    useState<PrismaCourse | null>(null);
+
+  const { run: runCreateCourse, loading: loadingCreate } = useRequest(
+    createCourse,
+    {
+      manual: true,
+      onSuccess: (result) => {
+        message.success(`课程 "${result.name}" 已成功添加!`);
+        refreshCourses();
+        setIsCourseModalOpen(false);
+      },
+      onError: (error) => {
+        message.error(error.message || '添加课程失败');
+      },
+    },
+  );
+
+  const { run: runUpdateCourse, loading: loadingUpdate } = useRequest(
+    updateCourse,
+    {
+      manual: true,
+      onSuccess: (result) => {
+        message.success(`课程 "${result.name}" 已成功更新!`);
+        refreshCourses();
+        setIsCourseModalOpen(false);
+        setEditingCourseData(null);
+      },
+      onError: (error) => {
+        message.error(error.message || '更新课程失败');
+      },
+    },
+  );
+
+  const { run: runDeleteCourse, loading: loadingDelete } = useRequest(
+    deleteCourse,
+    {
+      manual: true,
+      onSuccess: () => {
+        if (courseToDelete) {
+          message.success(`课程 "${courseToDelete.name}" 已成功删除!`);
+        }
+        refreshCourses();
+        setIsDeleteModalVisible(false);
+        setCourseToDelete(null);
+      },
+      onError: (error) => {
+        message.error(error.message || '删除课程失败');
+      },
+    },
+  );
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchText(e.target.value);
   };
 
-  const filteredCourses = courses.filter((course) =>
-    course.name.toLowerCase().includes(searchText.toLowerCase()),
-  );
-
-  const showDeleteModal = (course: DisplayCourse) => {
+  const showDeleteModal = (course: PrismaCourse) => {
     setCourseToDelete(course);
     setIsDeleteModalVisible(true);
   };
 
   const handleDeleteConfirm = () => {
     if (courseToDelete) {
-      setCourses(courses.filter((course) => course.id !== courseToDelete.id));
-      alert(`${courseToDelete.name} 已删除`);
+      runDeleteCourse(courseToDelete.id);
     }
-    setIsDeleteModalVisible(false);
-    setCourseToDelete(null);
   };
 
   const handleDeleteCancel = () => {
@@ -114,32 +133,81 @@ function ManageCoursesComponent() {
     setIsCourseModalOpen(true);
   };
 
-  const handleOpenEditCourseModal = (course: DisplayCourse) => {
+  const handleOpenEditCourseModal = (course: PrismaCourse) => {
     setEditingCourseData(course);
     setIsCourseModalOpen(true);
   };
 
-  const handleCourseFormSubmit = (values: CourseFormData) => {
+  const handleCourseFormSubmit = (values: PrismaCourse) => {
     if (editingCourseData) {
-      setCourses(
-        courses.map((c) =>
-          c.id === editingCourseData.id
-            ? { ...editingCourseData, ...values }
-            : c,
-        ),
-      );
-      alert(`${values.name} 已更新`);
-    } else {
-      const newCourse: DisplayCourse = {
-        id: Date.now().toString(),
-        ...values,
+      const updateDto: UpdateCourseDto = {
+        title: values.name,
+        description:
+          values.description === null ? undefined : values.description,
+        color: values.color,
       };
-      setCourses([...courses, newCourse]);
-      alert(`${values.name} 已添加`);
+      runUpdateCourse(editingCourseData.id, updateDto);
+    } else {
+      const createDto: CreateCourseDto = {
+        title: values.name,
+        description:
+          values.description === null ? undefined : values.description,
+        color: values.color,
+      };
+      runCreateCourse(createDto);
     }
-    setIsCourseModalOpen(false);
-    setEditingCourseData(null);
   };
+
+  if (loadingCourses) {
+    return (
+      <Layout style={{ background: '#fff', minHeight: '80vh' }}>
+        <Content
+          style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '48px',
+          }}
+        >
+          <Spin indicator={<LoadingOutlined style={{ fontSize: 36 }} spin />} />
+        </Content>
+      </Layout>
+    );
+  }
+
+  if (coursesError) {
+    return (
+      <Layout style={{ background: '#fff', minHeight: '80vh' }}>
+        <Content
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: '48px',
+          }}
+        >
+          <Title level={3} style={{ marginBottom: '16px' }}>
+            加载课程失败
+          </Title>
+          <Text type="danger">{coursesError.message || '未知错误'}</Text>
+          <Button
+            type="primary"
+            onClick={refreshCourses}
+            style={{ marginTop: '24px' }}
+          >
+            重试
+          </Button>
+        </Content>
+      </Layout>
+    );
+  }
+
+  const displayedCourses = courses || [];
+
+  const filteredCourses = displayedCourses.filter((course) =>
+    course.name.toLowerCase().includes(searchText.toLowerCase()),
+  );
 
   return (
     <Layout style={{ background: '#fff' }}>
@@ -219,6 +287,10 @@ function ManageCoursesComponent() {
               justifyContent: 'center',
               textAlign: 'center',
               height: '100%',
+              cursor:
+                loadingCreate || loadingUpdate || loadingDelete
+                  ? 'not-allowed'
+                  : 'pointer',
             }}
             styles={{
               body: {
@@ -230,7 +302,10 @@ function ManageCoursesComponent() {
                 width: '100%',
               },
             }}
-            onClick={handleOpenAddCourseModal}
+            onClick={() => {
+              if (loadingCreate || loadingUpdate || loadingDelete) return;
+              handleOpenAddCourseModal();
+            }}
           >
             <div
               style={{
@@ -302,15 +377,13 @@ function ManageCoursesComponent() {
                   <Button
                     icon={<EditOutlined />}
                     onClick={() => handleOpenEditCourseModal(course)}
-                    style={{ border: 'none' }}
-                    title={`编辑 ${course.name}`}
+                    aria-label="编辑课程"
                   />
                   <Button
                     icon={<DeleteOutlined />}
-                    onClick={() => showDeleteModal(course)}
                     danger
-                    style={{ border: 'none' }}
-                    title={`删除 ${course.name}`}
+                    onClick={() => showDeleteModal(course)}
+                    aria-label="删除课程"
                   />
                 </Space>
               </div>
@@ -326,7 +399,8 @@ function ManageCoursesComponent() {
         onCancel={handleDeleteCancel}
         okText="删除"
         cancelText="取消"
-        okButtonProps={{ danger: true }}
+        okButtonProps={{ danger: true, loading: loadingDelete }}
+        confirmLoading={loadingDelete}
       >
         <p>
           您确定要删除课程 &ldquo;{courseToDelete?.name}&rdquo;

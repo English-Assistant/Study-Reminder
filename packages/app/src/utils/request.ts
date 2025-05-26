@@ -16,7 +16,7 @@ interface ErrorData {
 
 export interface BackendResponse<T = unknown> {
   // 使用 unknown 代替 any
-  statusCode: number;
+  status: number;
   message: string;
   data: T;
 }
@@ -47,11 +47,7 @@ request.interceptors.response.use(
     // 使用 unknown
     const backendData = response.data;
 
-    if (
-      backendData &&
-      backendData.statusCode >= 200 &&
-      backendData.statusCode < 300
-    ) {
+    if (backendData && backendData.status >= 200 && backendData.status < 300) {
       return response; // 调用方通过 response.data.data 获取业务数据
     } else {
       const errorMessage =
@@ -68,9 +64,9 @@ request.interceptors.response.use(
     ) {
       const errorData = error.response.data;
       // 检查是否是 BackendResponse 结构
-      if ('statusCode' in errorData && 'message' in errorData) {
+      if ('status' in errorData && 'message' in errorData) {
         const backendErrorData = errorData as BackendResponse<unknown>;
-        const statusCode = backendErrorData.statusCode;
+        const status = backendErrorData.status;
         let message = 'An error occurred';
 
         if (Array.isArray(backendErrorData.message)) {
@@ -79,7 +75,7 @@ request.interceptors.response.use(
           message = backendErrorData.message;
         }
 
-        if (statusCode === 401) {
+        if (status === 401) {
           // console.error('Authentication failed:', message);
           // 后续添加: useUserStore.getState().logout();
           setTimeout(() => {

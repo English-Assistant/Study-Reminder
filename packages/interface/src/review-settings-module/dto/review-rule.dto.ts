@@ -5,16 +5,21 @@ import {
   IsNotEmpty,
   IsOptional,
   IsUUID,
+  IsString,
 } from 'class-validator';
-import {
-  ReviewRuleUnit,
-  ReviewRuleRepetition,
-} from '../../../generated/prisma'; // 路径相对于当前文件
+import { ReviewRuleUnit, ReviewRuleRepetition } from '@prisma/client';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 
 export class ReviewRuleDto {
+  @ApiPropertyOptional({ description: '规则ID (由后端生成)', format: 'uuid' })
   @IsOptional() // id 是从数据库读取时才有，创建/设置时可能没有
   @IsUUID('4', { message: 'ID必须是有效的UUID' })
   id?: string;
+
+  @ApiPropertyOptional({ description: '规则描述', example: '每日回顾' })
+  @IsOptional()
+  @IsString({ message: '描述必须是字符串' })
+  description?: string;
 
   @IsInt({ message: '时间值必须是整数' })
   @Min(1, { message: '时间值必须大于0' })

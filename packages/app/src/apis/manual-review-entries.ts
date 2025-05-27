@@ -23,7 +23,6 @@ export async function createManualReviewEntry(
 // 获取所有手动复习条目 (可带查询参数)
 interface FindAllManualReviewEntriesParams {
   courseId?: string;
-  completed?: boolean;
   // 其他可能的查询参数，根据后端控制器的 @Query() 定义
 }
 export async function getAllManualReviewEntries(
@@ -59,24 +58,4 @@ export async function deleteManualReviewEntry(id: string) {
   await request.delete<
     GlobalApiTypes<ReturnType<ManualReviewEntriesModuleController['remove']>>
   >(`/manual-review-entries/${id}`);
-}
-
-// 标记手动复习条目为已完成
-export async function markManualEntryAsCompleted(id: string) {
-  const response = await request.patch<
-    GlobalApiTypes<
-      ReturnType<ManualReviewEntriesModuleController['markAsCompleted']>
-    >
-  >(`/manual-review-entries/${id}/complete`);
-  return response.data.data;
-}
-
-// 标记手动复习条目为未完成
-export async function markManualEntryAsNotCompleted(id: string) {
-  const response = await request.patch<
-    GlobalApiTypes<
-      ReturnType<ManualReviewEntriesModuleController['markAsNotCompleted']>
-    >
-  >(`/manual-review-entries/${id}/uncomplete`);
-  return response.data.data;
 }

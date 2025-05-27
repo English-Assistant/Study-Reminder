@@ -14,7 +14,7 @@ import { CoursesModuleService } from './courses-module.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { JwtAuthGuard } from '../auth-module/guards/jwt-auth.guard';
-import { Course } from '../../generated/prisma'; // 根据实际 Prisma Client 生成路径调整
+import { Course } from '@prisma/client';
 
 // 定义请求中 user 对象的接口
 interface AuthenticatedRequest extends Request {

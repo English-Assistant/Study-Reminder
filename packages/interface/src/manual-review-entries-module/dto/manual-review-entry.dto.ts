@@ -1,6 +1,5 @@
 import {
   IsString,
-  IsBoolean,
   IsOptional,
   IsUUID,
   IsDateString,
@@ -15,7 +14,8 @@ export class ManualReviewEntryDto {
   courseId!: string;
 
   @IsString()
-  courseName?: string; // Populated if course is included
+  @IsOptional()
+  courseName?: string;
 
   @IsString()
   title!: string;
@@ -33,13 +33,6 @@ export class ManualReviewEntryDto {
     message: 'reviewTime 必须是有效的 HH:mm 格式',
   })
   reviewTime?: string;
-
-  @IsBoolean()
-  isCompleted!: boolean;
-
-  @IsDateString()
-  @IsOptional()
-  completedAt?: string;
 
   @IsDateString()
   createdAt!: string;

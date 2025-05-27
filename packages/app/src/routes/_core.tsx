@@ -117,7 +117,7 @@ function CoreLayoutComponent() {
                 key: 'logout',
                 onClick: () => {
                   logout();
-                  navigate({ to: '/log-on' });
+                  navigate({ to: '/login' });
                 },
               },
             ],

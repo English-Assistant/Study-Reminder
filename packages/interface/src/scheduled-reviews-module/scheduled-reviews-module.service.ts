@@ -1,30 +1,33 @@
 import {
   Injectable,
   Logger,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
+  // NotFoundException, // No longer needed by markReviewAsDone
+  // BadRequestException, // No longer needed by markReviewAsDone
+  // ForbiddenException, // No longer needed by markReviewAsDone
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { LearningActivitiesModuleService } from '../learning-activities-module/learning-activities-module.service';
+// import { LearningActivitiesModuleService } from '../learning-activities-module/learning-activities-module.service'; // REMOVED
 import { ReviewSettingsService } from '../review-settings-module/review-settings-module.service';
-import { CoursesModuleService } from '../courses-module/courses-module.service';
+// import { CoursesModuleService } from '../courses-module/courses-module.service'; // Not directly used
 import { ScheduledReviewDto } from './dto/scheduled-review.dto';
-import { MarkReviewAsDoneDto } from './dto/mark-review-as-done.dto';
+// import { MarkReviewAsDoneDto } from './dto/mark-review-as-done.dto'; // REMOVED
 import {
-  LearningActivityType,
+  // LearningActivityType, // REMOVED
   ReviewRuleRepetition,
   ReviewRuleUnit,
-  LearningActivity,
-  ManualReviewEntry,
-} from '../../generated/prisma';
+  // LearningActivity, // REMOVED
+  // ManualReviewEntry, // REMOVED
+} from '@prisma/client';
 import {
   addMinutes,
   addHours,
   addDays,
   addMonths,
-  differenceInDays,
-} from 'date-fns'; // 用于日期计算
+  // differenceInDays, // REMOVED
+  parseISO,
+  startOfDay,
+  endOfDay,
+} from 'date-fns';
 
 @Injectable()
 export class ScheduledReviewsModuleService {
@@ -32,43 +35,40 @@ export class ScheduledReviewsModuleService {
 
   constructor(
     private prisma: PrismaService,
-    private learningActivitiesService: LearningActivitiesModuleService,
-    private reviewSettingsService: ReviewSettingsService, // 用于获取全局复习规则
-    private coursesService: CoursesModuleService, // 用于获取课程详情
+    // private learningActivitiesService: LearningActivitiesModuleService, // REMOVED
+    private reviewSettingsService: ReviewSettingsService,
+    // private coursesService: CoursesModuleService, // Not directly used
   ) {}
 
-  /**
-   * 计算并返回用户的待复习列表。
-   * 这是核心的复杂逻辑所在。
-   */
-  async getScheduledReviews(userId: string): Promise<ScheduledReviewDto[]> {
-    this.logger.log(`开始为用户 ${userId} 计算待复习列表`);
-    const scheduledReviews: ScheduledReviewDto[] = [];
+  async getScheduledReviews(
+    userId: string,
+    from?: string,
+    to?: string,
+  ): Promise<ScheduledReviewDto[]> {
+    this.logger.log(
+      `开始为用户 ${userId} 计算待复习列表 (from: ${from}, to: ${to})`,
+    );
+    let scheduledReviews: ScheduledReviewDto[] = [];
 
-    // 1. 获取用户所有非默认课程 (isDefault=false)
     const userCourses = await this.prisma.course.findMany({
-      where: { userId, isDefault: false },
-      include: {
-        // rules: true, // 如果课程可以有自己的复习规则 (当前schema.prisma中 ReviewRule 没有直接关联 Course)
-      },
+      where: { userId, isDefault: false }, // We only generate reviews for user's own non-default courses
     });
 
-    // 2. 获取用户的全局复习规则
-    const globalReviewRules =
-      await this.reviewSettingsService.getGlobalReviewRules(userId);
+    const globalSettings =
+      await this.reviewSettingsService.getGlobalSettings(userId);
+    const globalReviewRules = globalSettings.rules;
+
     if (!globalReviewRules || globalReviewRules.length === 0) {
-      this.logger.log(`用户 ${userId} 没有全局复习规则，无法生成复习项。`);
+      this.logger.log(`用户 ${userId} 没有全局复习规则，可以跳过规则生成。`);
     }
 
-    // 3. 获取用户所有的学习活动
-    const allLearningActivities = await this.prisma.learningActivity.findMany({
-      where: { userId },
-      orderBy: { activityTimestamp: 'asc' },
-    });
+    // Since LearningActivity is removed, we need a different way to get the initial learning date for courses.
+    // For now, let's assume course.createdAt is the initial learning date.
+    // This is a simplification and might need adjustment based on actual app logic for "when learning starts".
 
-    // 4. 获取用户的手动复习条目 (未完成的)
     const manualEntries = await this.prisma.manualReviewEntry.findMany({
-      where: { userId, isCompleted: false },
+      // where: { userId, isCompleted: false }, // isCompleted is removed
+      where: { userId },
       include: { course: true },
     });
 
@@ -78,128 +78,120 @@ export class ScheduledReviewsModuleService {
           id: `manual-${entry.id}`,
           courseId: entry.courseId,
           courseName: entry.course.name,
+          courseColor: entry.course.color,
           scheduledAt: entry.reviewDate.toISOString(),
-          originalLearningActivityId: undefined,
-          reviewRuleId: undefined,
-          ruleDescription: entry.title,
-          repetitionCycle: undefined,
+          // originalLearningActivityId: undefined, // REMOVED
+          reviewRuleId: undefined, // Manual entries don't have a rule ID in this context
+          ruleDescription: entry.title, // Use title as description for manual entries
+          repetitionCycle: undefined, // Manual entries are typically ONCE
+          type: 'manual',
         });
       }
     }
 
-    for (const course of userCourses) {
-      const initialLearningActivity = allLearningActivities.find(
-        (act) =>
-          act.courseId === course.id &&
-          act.activityType === LearningActivityType.INITIAL_LEARNING,
-      );
+    if (globalReviewRules && globalReviewRules.length > 0) {
+      for (const course of userCourses) {
+        // Use course.createdAt as the base for rule calculation
+        const initialTimestamp = new Date(course.createdAt);
 
-      if (!initialLearningActivity) {
-        this.logger.log(
-          `课程 ${course.id} (${course.name}) 没有初始学习活动，跳过。`,
-        );
-        continue;
-      }
+        for (const rule of globalReviewRules) {
+          let nextReviewTimeLoop = initialTimestamp;
+          let repetitionCount = 0;
 
-      const initialTimestamp = new Date(
-        initialLearningActivity.activityTimestamp,
-      );
+          do {
+            repetitionCount++;
+            const baseTimeForRuleCalculation =
+              rule.repetition === ReviewRuleRepetition.LOOP &&
+              repetitionCount > 1
+                ? nextReviewTimeLoop
+                : initialTimestamp;
 
-      for (const rule of globalReviewRules) {
-        let nextReviewTimeLoop = initialTimestamp; // Use a different var for loop progression
-        let repetitionCount = 0;
-
-        do {
-          repetitionCount++;
-          const baseTimeForRuleCalculation =
-            rule.repetition === ReviewRuleRepetition.LOOP && repetitionCount > 1
-              ? nextReviewTimeLoop // Base on previous iteration for loops
-              : initialTimestamp; // Base on initial learning for first cycle or ONCE
-
-          const currentCalculatedReviewTime = this.calculateNextReviewTime(
-            baseTimeForRuleCalculation,
-            rule.value,
-            rule.unit,
-          );
-          nextReviewTimeLoop = currentCalculatedReviewTime; // Update for next potential loop iteration
-
-          const scheduledAtISO = currentCalculatedReviewTime.toISOString();
-
-          const alreadyCompleted = allLearningActivities.some(
-            (act) =>
-              act.courseId === course.id &&
-              act.activityType === LearningActivityType.REVIEW_COMPLETED &&
-              differenceInDays(
-                new Date(act.activityTimestamp),
-                currentCalculatedReviewTime,
-              ) === 0,
-          );
-
-          if (
-            alreadyCompleted &&
-            rule.repetition === ReviewRuleRepetition.ONCE
-          ) {
-            this.logger.log(
-              `课程 ${course.name}, 规则 ${rule.value} ${rule.unit} (ONCE) 已完成.`,
+            const currentCalculatedReviewTime = this.calculateNextReviewTime(
+              baseTimeForRuleCalculation,
+              rule.value,
+              rule.unit,
             );
-            break;
-          }
-          if (
-            alreadyCompleted &&
-            rule.repetition === ReviewRuleRepetition.LOOP
-          ) {
-            this.logger.log(
-              `课程 ${course.name}, 规则 ${rule.value} ${rule.unit} (LOOP Cycle ${repetitionCount}) 已完成.`,
-            );
-            continue;
-          }
+            nextReviewTimeLoop = currentCalculatedReviewTime;
 
-          let ruleIdentifier: string;
-          if (rule.id) {
-            ruleIdentifier = rule.id;
-          } else {
-            ruleIdentifier = `global-${rule.value}${rule.unit}`;
-          }
+            const scheduledAtISO = currentCalculatedReviewTime.toISOString();
 
-          scheduledReviews.push({
-            id: `rule-${course.id}-${ruleIdentifier}-${repetitionCount}`,
-            courseId: course.id,
-            courseName: course.name,
-            scheduledAt: scheduledAtISO,
-            originalLearningActivityId: initialLearningActivity.id,
-            reviewRuleId: rule.id,
-            ruleDescription: `${rule.value} ${rule.unit}${rule.repetition === ReviewRuleRepetition.LOOP ? ` (周期 ${repetitionCount})` : ''}`,
-            repetitionCycle:
+            // Since "completed" concept is removed, we don't check if a review was already completed.
+            // Every calculated instance based on rules will be a potential review item.
+            // The user decides if they reviewed it; the app just reminds.
+
+            let ruleIdentifier: string;
+            if (rule.id) {
+              ruleIdentifier = rule.id;
+            } else {
+              // Fallback if rule.id is not present (e.g. for newly added rules not yet saved to DB)
+              ruleIdentifier =
+                `rule-${rule.value}${rule.unit}${rule.repetition}`.replace(
+                  /\s+/g,
+                  '',
+                );
+            }
+
+            scheduledReviews.push({
+              id: `rule-${course.id}-${ruleIdentifier}-${repetitionCount}`,
+              courseId: course.id,
+              courseName: course.name,
+              courseColor: course.color,
+              scheduledAt: scheduledAtISO,
+              // originalLearningActivityId: initialLearningActivity.id, // REMOVED
+              reviewRuleId: rule.id,
+              ruleDescription: `${rule.description || rule.value + ' ' + rule.unit}${rule.repetition === ReviewRuleRepetition.LOOP ? ` (周期 ${repetitionCount})` : ''}`,
+              repetitionCycle:
+                rule.repetition === ReviewRuleRepetition.LOOP
+                  ? repetitionCount
+                  : undefined,
+              type: 'rule-based',
+            });
+
+            if (rule.repetition === ReviewRuleRepetition.ONCE) {
+              break;
+            }
+            if (
+              repetitionCount >= 10 && // Safety break for loops
               rule.repetition === ReviewRuleRepetition.LOOP
-                ? repetitionCount
-                : undefined,
-          });
-
-          if (rule.repetition === ReviewRuleRepetition.ONCE) {
-            break;
-          }
-          if (
-            repetitionCount >= 10 &&
-            rule.repetition === ReviewRuleRepetition.LOOP
-          ) {
-            this.logger.warn(
-              `用户 ${userId}, 课程 ${course.name}, 规则 ${ruleIdentifier} 达到10次循环上限.`,
-            );
-            break;
-          }
-        } while (
-          rule.repetition === ReviewRuleRepetition.LOOP &&
-          nextReviewTimeLoop < addMonths(new Date(), 12)
-        );
+            ) {
+              this.logger.warn(
+                `用户 ${userId}, 课程 ${course.name}, 规则 ${ruleIdentifier} 达到10次循环上限.`,
+              );
+              break;
+            }
+            // Limit loop to a reasonable future period, e.g., 2 years from now
+          } while (
+            rule.repetition === ReviewRuleRepetition.LOOP &&
+            nextReviewTimeLoop < addMonths(new Date(), 24)
+          );
+        }
       }
+    }
+
+    if (from || to) {
+      const fromDate = from ? startOfDay(parseISO(from)) : null;
+      const toDate = to ? endOfDay(parseISO(to)) : null;
+
+      scheduledReviews = scheduledReviews.filter((item) => {
+        const itemDate = parseISO(item.scheduledAt);
+        if (fromDate && itemDate < fromDate) {
+          return false;
+        }
+        if (toDate && itemDate > toDate) {
+          return false;
+        }
+        return true;
+      });
     }
 
     scheduledReviews.sort(
       (a, b) =>
         new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
     );
+
+    const finalCount: number = scheduledReviews.length;
     this.logger.log(
-      `为用户 ${userId} 计算得到 ${scheduledReviews.length} 个待复习项。`,
+      `为用户 ${userId} 计算并过滤得到 ${finalCount} 个待复习项。`,
     );
     return scheduledReviews;
   }
@@ -218,69 +210,16 @@ export class ScheduledReviewsModuleService {
         return addDays(baseTime, value);
       case ReviewRuleUnit.MONTHS:
         return addMonths(baseTime, value);
-      default:
-        this.logger.error(`Unsupported ReviewRuleUnit: ${unit}`);
-        throw new Error(`Unsupported ReviewRuleUnit: ${unit}`);
-    }
-  }
-
-  async markReviewAsDone(
-    userId: string,
-    markAsDoneDto: MarkReviewAsDoneDto,
-  ): Promise<LearningActivity | ManualReviewEntry | null> {
-    this.logger.log(
-      `用户 ${userId} 标记复习项 ${markAsDoneDto.scheduledReviewId} 为完成。`,
-    );
-    const { scheduledReviewId, completedAt, notes } = markAsDoneDto;
-    const actualCompletedAt = completedAt ? new Date(completedAt) : new Date();
-
-    if (scheduledReviewId.startsWith('manual-')) {
-      const manualEntryId = scheduledReviewId.replace('manual-', '');
-      const entry = await this.prisma.manualReviewEntry.findUnique({
-        where: { id: manualEntryId },
-      });
-      if (!entry)
-        throw new NotFoundException(
-          `ID 为 ${manualEntryId} 的手动复习条目未找到`,
-        );
-      if (entry.userId !== userId)
-        throw new ForbiddenException('您无权修改此手动复习条目');
-
-      return this.prisma.manualReviewEntry.update({
-        where: { id: manualEntryId },
-        data: {
-          isCompleted: true,
-          completedAt: actualCompletedAt,
-        },
-      });
-    } else if (scheduledReviewId.startsWith('rule-')) {
-      const parts = scheduledReviewId.split('-');
-      if (parts.length < 4) {
+      default: {
+        // Handle the 'never' case for exhaustiveness checking
+        const exhaustiveCheck: never = unit;
         this.logger.error(
-          `无效的 scheduledReviewId 格式: ${scheduledReviewId}`,
+          `Unsupported ReviewRuleUnit encountered: ${String(exhaustiveCheck)}`,
         );
-        throw new BadRequestException('无效的 scheduledReviewId 格式');
+        throw new Error(`Unsupported ReviewRuleUnit encountered.`);
       }
-      const courseId = parts[1];
-
-      const course = await this.prisma.course.findFirst({
-        where: { id: courseId, userId },
-      });
-      if (!course)
-        throw new NotFoundException(`课程 ID ${courseId} 未找到或您无权访问。`);
-
-      return this.prisma.learningActivity.create({
-        data: {
-          userId,
-          courseId: courseId,
-          activityType: LearningActivityType.REVIEW_COMPLETED,
-          activityTimestamp: actualCompletedAt,
-          notes: notes || `Completed review for course ${course.name}`,
-        },
-      });
-    } else {
-      this.logger.error(`未知的 scheduledReviewId 格式: ${scheduledReviewId}`);
-      throw new BadRequestException('未知的 scheduledReviewId 格式');
     }
   }
+
+  // Removed markReviewAsDone method
 }

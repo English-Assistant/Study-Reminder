@@ -19,7 +19,6 @@ import { CreateManualReviewEntryDto } from './dto/create-manual-review-entry.dto
 import { UpdateManualReviewEntryDto } from './dto/update-manual-review-entry.dto';
 import { ManualReviewEntryDto } from './dto/manual-review-entry.dto';
 import { JwtAuthGuard } from '../auth-module/guards/jwt-auth.guard';
-import { OptionalParseBoolPipe } from './optional-parse-bool.pipe';
 
 interface AuthenticatedRequest extends Request {
   user: {
@@ -48,11 +47,9 @@ export class ManualReviewEntriesModuleController {
   async findAll(
     @Req() req: AuthenticatedRequest,
     @Query('courseId') courseId?: string,
-    @Query('isCompleted', new OptionalParseBoolPipe()) isCompleted?: boolean,
   ): Promise<ManualReviewEntryDto[]> {
-    const filters: { courseId?: string; isCompleted?: boolean } = {};
+    const filters: { courseId?: string } = {};
     if (courseId) filters.courseId = courseId;
-    if (isCompleted !== undefined) filters.isCompleted = isCompleted;
     return await this.entriesService.findAllByUser(req.user.userId, filters);
   }
 
@@ -84,21 +81,5 @@ export class ManualReviewEntriesModuleController {
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
     await this.entriesService.remove(id, req.user.userId);
-  }
-
-  @Post(':id/complete')
-  async markAsCompleted(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Req() req: AuthenticatedRequest,
-  ): Promise<ManualReviewEntryDto> {
-    return await this.entriesService.markAsCompleted(id, req.user.userId);
-  }
-
-  @Post(':id/uncomplete')
-  async markAsNotCompleted(
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Req() req: AuthenticatedRequest,
-  ): Promise<ManualReviewEntryDto> {
-    return await this.entriesService.markAsNotCompleted(id, req.user.userId);
   }
 }

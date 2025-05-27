@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ManualReviewEntry, Prisma } from '../../generated/prisma';
+import { ManualReviewEntry, Prisma } from '@prisma/client';
 import { CreateManualReviewEntryDto } from './dto/create-manual-review-entry.dto';
 import { UpdateManualReviewEntryDto } from './dto/update-manual-review-entry.dto';
 import { ManualReviewEntryDto } from './dto/manual-review-entry.dto';
@@ -29,8 +29,6 @@ export class ManualReviewEntriesModuleService {
       description: entry.description ?? undefined,
       reviewDate: format(entry.reviewDate, 'yyyy-MM-dd'),
       reviewTime: entry.reviewTime ?? undefined,
-      isCompleted: entry.isCompleted,
-      completedAt: entry.completedAt?.toISOString(),
       createdAt: entry.createdAt.toISOString(),
       updatedAt: entry.updatedAt.toISOString(),
     };
@@ -50,16 +48,12 @@ export class ManualReviewEntriesModuleService {
       throw new NotFoundException(`ID 为 ${courseId} 的课程不存在`);
     }
 
-    // For manual entries, let's ensure the user owns the course or it's a default one they can add to.
-    // Simpler: For now, only allow adding to their own non-default courses.
     if (course.userId !== userId && !course.isDefault) {
-      // Adjusted to allow adding to default courses as well
       throw new ForbiddenException(
         '您只能为自己创建的课程或全局课程添加手动复习条目。',
       );
     }
     if (course.userId !== userId && course.isDefault) {
-      // If it's a default course, the manual entry's userId is still the current user.
       this.logger.log(
         `User ${userId} creating manual entry for default course ${courseId}`,
       );
@@ -67,7 +61,7 @@ export class ManualReviewEntriesModuleService {
 
     let reviewDateTime: Date;
     try {
-      reviewDateTime = parseISO(reviewDate); // Expects YYYY-MM-DD, converts to UTC midnight
+      reviewDateTime = parseISO(reviewDate);
     } catch (e) {
       this.logger.error(
         `Invalid reviewDate format: ${reviewDate}`,
@@ -82,7 +76,6 @@ export class ManualReviewEntriesModuleService {
         userId,
         courseId,
         reviewDate: reviewDateTime,
-        // reviewTime is already a string and optional, stored directly
       },
       include: {
         course: { select: { name: true } },
@@ -94,16 +87,12 @@ export class ManualReviewEntriesModuleService {
 
   async findAllByUser(
     userId: string,
-    filters: { courseId?: string; isCompleted?: boolean },
+    filters: { courseId?: string /* isCompleted?: boolean */ },
   ): Promise<ManualReviewEntryDto[]> {
     const whereCondition: Prisma.ManualReviewEntryWhereInput = { userId };
 
     if (filters.courseId) {
       whereCondition.courseId = filters.courseId;
-    }
-
-    if (typeof filters.isCompleted === 'boolean') {
-      whereCondition.isCompleted = filters.isCompleted;
     }
 
     const entries = await this.prisma.manualReviewEntry.findMany({
@@ -135,7 +124,6 @@ export class ManualReviewEntriesModuleService {
     }
 
     if (entry.userId !== userId) {
-      // Log this attempt, but don't throw Forbidden, just act as if not found for this user.
       this.logger.warn(
         `User ${userId} attempted to access manual review entry ${id} owned by ${entry.userId}`,
       );
@@ -196,28 +184,6 @@ export class ManualReviewEntriesModuleService {
       }
     }
 
-    // Handle isCompleted and completedAt explicitly if they are part of UpdateManualReviewEntryDto
-    if (typeof updateDto.isCompleted === 'boolean') {
-      dataToUpdate.isCompleted = updateDto.isCompleted;
-      if (updateDto.isCompleted && updateDto.completedAt) {
-        try {
-          dataToUpdate.completedAt = parseISO(updateDto.completedAt);
-        } catch (e) {
-          this.logger.error(
-            `Invalid completedAt format in update: ${updateDto.completedAt}`,
-            (e as Error).stack,
-          );
-          throw new Error(
-            '更新中无效的 completedAt 格式，期望 YYYY-MM-DDTHH:mm:ss.sssZ 或类似ISO格式',
-          );
-        }
-      } else if (updateDto.isCompleted && !updateDto.completedAt) {
-        dataToUpdate.completedAt = new Date(); // Default to now if not provided
-      } else if (!updateDto.isCompleted) {
-        dataToUpdate.completedAt = null; // Clear completedAt if marked as not completed
-      }
-    }
-
     const updatedEntry = await this.prisma.manualReviewEntry.update({
       where: { id },
       data: dataToUpdate,
@@ -243,62 +209,5 @@ export class ManualReviewEntriesModuleService {
     await this.prisma.manualReviewEntry.delete({
       where: { id },
     });
-  }
-
-  async markAsCompleted(
-    id: string,
-    userId: string,
-    completedAtDate?: Date,
-  ): Promise<ManualReviewEntryDto> {
-    const entry = await this.prisma.manualReviewEntry.findUnique({
-      where: { id },
-    });
-
-    if (!entry || entry.userId !== userId) {
-      throw new NotFoundException(
-        `ID 为 ${id} 的手动复习条目未找到或您无权操作。`,
-      );
-    }
-
-    const updatedEntry = await this.prisma.manualReviewEntry.update({
-      where: { id },
-      data: {
-        isCompleted: true,
-        completedAt: completedAtDate || new Date(),
-      },
-      include: {
-        course: { select: { name: true } },
-      },
-    });
-
-    return this.toDto(updatedEntry);
-  }
-
-  async markAsNotCompleted(
-    id: string,
-    userId: string,
-  ): Promise<ManualReviewEntryDto> {
-    const entry = await this.prisma.manualReviewEntry.findUnique({
-      where: { id },
-    });
-
-    if (!entry || entry.userId !== userId) {
-      throw new NotFoundException(
-        `ID 为 ${id} 的手动复习条目未找到或您无权操作。`,
-      );
-    }
-
-    const updatedEntry = await this.prisma.manualReviewEntry.update({
-      where: { id },
-      data: {
-        isCompleted: false,
-        completedAt: null,
-      },
-      include: {
-        course: { select: { name: true } },
-      },
-    });
-
-    return this.toDto(updatedEntry);
   }
 }

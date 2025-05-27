@@ -11,313 +11,402 @@ import {
   Divider,
   InputNumber,
   Popconfirm,
-  message,
+  Spin,
+  Alert,
+  Input,
+  Row,
+  Col,
+  App,
 } from 'antd';
 import {
   SaveOutlined,
-  DownOutlined,
   PlusOutlined,
   DeleteOutlined,
+  DownOutlined,
+  UndoOutlined,
 } from '@ant-design/icons';
-import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { useRequest } from 'ahooks';
+import { getGlobalSettings, setGlobalSettings } from '@/apis/review-settings';
+import type { GlobalReviewSettingsDto } from '@y/interface/review-settings-module/dto/global-review-settings.dto.ts';
+import type { SetGlobalReviewRulesDto } from '@y/interface/review-settings-module/dto/set-global-review-rules.dto.ts';
+import type { ReviewRuleDto } from '@y/interface/review-settings-module/dto/review-rule.dto.ts';
+import type {
+  ReviewRuleUnit,
+  ReviewRuleRepetition,
+} from '@y/interface/common/prisma.type.js';
+import type { FC } from 'react';
 
-const { Title, Text, Paragraph } = Typography;
-const { Option } = Select;
+const { Title, Paragraph, Text } = Typography;
 
 export const Route = createFileRoute('/_core/set-up')({
   component: SettingsComponent,
 });
 
-interface ReminderRule {
-  id: string;
-  value: number | null;
-  unit: 'minutes' | 'hours' | 'days' | 'months';
-  repetition: 'once' | 'loop';
-}
-
-interface CourseSetting {
-  id: string;
-  name: string;
-}
-
-const initialGlobalReminderRules: ReminderRule[] = [
-  { id: uuidv4(), value: 1, unit: 'hours', repetition: 'once' },
-  { id: uuidv4(), value: 1, unit: 'days', repetition: 'once' },
-  { id: uuidv4(), value: 2, unit: 'days', repetition: 'once' },
-  { id: uuidv4(), value: 4, unit: 'days', repetition: 'once' },
-  { id: uuidv4(), value: 7, unit: 'days', repetition: 'once' },
-  { id: uuidv4(), value: 15, unit: 'days', repetition: 'once' },
-  { id: uuidv4(), value: 30, unit: 'days', repetition: 'once' },
-  { id: uuidv4(), value: 60, unit: 'days', repetition: 'once' },
-  { id: uuidv4(), value: 90, unit: 'days', repetition: 'once' },
-];
-
-const initialCourseSettings: CourseSetting[] = [
-  { id: 'math', name: '高等数学' },
-  { id: 'algebra', name: '线性代数' },
-  { id: 'datastruct', name: '数据结构与算法' },
-  { id: 'os', name: '操作系统' },
-  { id: 'networks', name: '计算机网络' },
-  { id: 'db', name: '数据库系统原理' },
-  { id: 'discrete', name: '离散数学' },
-  { id: 'compiler', name: '编译原理' },
-  { id: 'ai', name: '人工智能' },
-  { id: 'ml', name: '机器学习' },
-];
-
-const reminderUnitOptions = [
-  { value: 'minutes', label: '分钟后' },
-  { value: 'hours', label: '小时后' },
-  { value: 'days', label: '天后' },
-  { value: 'months', label: '个月后' },
+const friendlyReminderUnitOptions = [
+  { value: 'MINUTES' as ReviewRuleUnit, label: '分钟后' },
+  { value: 'HOURS' as ReviewRuleUnit, label: '小时后' },
+  { value: 'DAYS' as ReviewRuleUnit, label: '天后' },
+  { value: 'MONTHS' as ReviewRuleUnit, label: '个月后' },
 ];
 
 const repetitionOptions = [
-  { value: 'once', label: '仅一次' },
-  { value: 'loop', label: '循环' },
+  { value: 'ONCE' as ReviewRuleRepetition, label: '仅一次' },
+  { value: 'LOOP' as ReviewRuleRepetition, label: '循环' },
 ];
 
+/*
+ * 二次封装的antd组件，包含switch
+ */
+const SwitchFormItem: FC<{
+  label: string;
+  [x: string]: unknown;
+}> = ({ label, ...rest }) => {
+  return (
+    <Row>
+      <Col flex={1}>
+        <Text>{label}</Text>
+      </Col>
+      <Col>
+        <Switch {...rest}></Switch>
+      </Col>
+    </Row>
+  );
+};
+
 function SettingsComponent() {
-  const [form] = Form.useForm();
-  const [globalRemindersEnabled, setGlobalRemindersEnabled] = useState(true);
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [appNotifications, setAppNotifications] = useState(true);
-  const [courseSettings] = useState<CourseSetting[]>(initialCourseSettings);
-  const [customReminderRules, setCustomReminderRules] = useState<
-    ReminderRule[]
-  >(initialGlobalReminderRules);
-  const [isSaveDisabled, setIsSaveDisabled] = useState(false);
+  const [form] = Form.useForm<SetGlobalReviewRulesDto>();
 
-  useEffect(() => {
-    if (globalRemindersEnabled && customReminderRules.length > 0) {
-      const hasInvalidRule = customReminderRules.some(
-        (rule) =>
-          rule.value === null ||
-          typeof rule.value !== 'number' ||
-          rule.value <= 0,
-      );
-      setIsSaveDisabled(hasInvalidRule);
-    } else {
-      setIsSaveDisabled(false);
-    }
-  }, [globalRemindersEnabled, customReminderRules]);
+  const { message } = App.useApp();
 
-  const handleAddCustomRule = () => {
-    setCustomReminderRules((prevRules) => [
-      ...prevRules,
-      { id: uuidv4(), value: null, unit: 'days', repetition: 'once' },
-    ]);
-  };
+  const { loading: loadingInitialSettings } = useRequest<
+    GlobalReviewSettingsDto,
+    []
+  >(getGlobalSettings, {
+    onSuccess: (data) => {
+      form.setFieldsValue(data);
+    },
+    onError: (err) => {
+      message.error(err.message);
+    },
+  });
 
-  const handleDeleteCustomRule = (ruleId: string) => {
-    setCustomReminderRules((prevRules) =>
-      prevRules.filter((rule) => rule.id !== ruleId),
-    );
-  };
+  const {
+    run: saveSettings,
+    loading: savingSettings,
+    error: saveError,
+  } = useRequest<GlobalReviewSettingsDto, [SetGlobalReviewRulesDto]>(
+    setGlobalSettings,
+    {
+      manual: true,
+      onSuccess: () => {
+        message.success('设置已成功保存！');
+      },
+      onError: (err) => {
+        message.error(err.message);
+      },
+    },
+  );
 
-  const handleUpdateCustomRule = (
-    ruleId: string,
-    field: keyof Omit<ReminderRule, 'id'>,
-    value: number | string | null,
-  ) => {
-    setCustomReminderRules((prevRules) =>
-      prevRules.map((rule) =>
-        rule.id === ruleId ? { ...rule, [field]: value } : rule,
-      ),
-    );
-  };
-
-  const onFinish = (values: Record<string, never>) => {
-    if (globalRemindersEnabled && customReminderRules.length > 0) {
-      const hasInvalidRule = customReminderRules.some(
-        (rule) =>
-          rule.value === null ||
-          typeof rule.value !== 'number' ||
-          rule.value <= 0,
-      );
-      if (hasInvalidRule) {
-        message.error('自定义提醒规则中的时间值必须是大于0的有效数字。');
-        return;
-      }
-    }
-
-    console.log('Settings saved:', {
-      globalRemindersEnabled,
-      emailNotifications: globalRemindersEnabled ? emailNotifications : false,
-      appNotifications: globalRemindersEnabled ? appNotifications : false,
-      customReminderRules: globalRemindersEnabled ? customReminderRules : [],
-      courseSettings,
+  const onFinish = async (values: SetGlobalReviewRulesDto) => {
+    const payload: SetGlobalReviewRulesDto = {
       ...values,
-    });
-    message.success('设置已保存！');
+      rules: values.rules
+        ? values.rules.map((rule: ReviewRuleDto) => ({
+            ...rule,
+            value: Number(rule.value),
+            id:
+              rule.id && /^[0-9a-fA-F]{24}$/.test(rule.id as string)
+                ? rule.id
+                : undefined,
+          }))
+        : [],
+    };
+
+    saveSettings(payload);
   };
+
+  const handleResetRules = () => {
+    const defaultRules: ReviewRuleDto[] = [
+      {
+        id: uuidv4(),
+        value: 1,
+        unit: 'HOURS' as ReviewRuleUnit,
+        repetition: 'ONCE' as ReviewRuleRepetition,
+        description: '',
+      },
+      {
+        id: uuidv4(),
+        value: 3,
+        unit: 'HOURS' as ReviewRuleUnit,
+        repetition: 'ONCE' as ReviewRuleRepetition,
+        description: '',
+      },
+      {
+        id: uuidv4(),
+        value: 1,
+        unit: 'DAYS' as ReviewRuleUnit,
+        repetition: 'ONCE' as ReviewRuleRepetition,
+        description: '',
+      },
+      {
+        id: uuidv4(),
+        value: 2,
+        unit: 'DAYS' as ReviewRuleUnit,
+        repetition: 'ONCE' as ReviewRuleRepetition,
+        description: '',
+      },
+      {
+        id: uuidv4(),
+        value: 3,
+        unit: 'DAYS' as ReviewRuleUnit,
+        repetition: 'ONCE' as ReviewRuleRepetition,
+        description: '',
+      },
+      {
+        id: uuidv4(),
+        value: 7,
+        unit: 'DAYS' as ReviewRuleUnit,
+        repetition: 'ONCE' as ReviewRuleRepetition,
+        description: '',
+      },
+      {
+        id: uuidv4(),
+        value: 15,
+        unit: 'DAYS' as ReviewRuleUnit,
+        repetition: 'ONCE' as ReviewRuleRepetition,
+        description: '',
+      },
+      {
+        id: uuidv4(),
+        value: 30,
+        unit: 'DAYS' as ReviewRuleUnit,
+        repetition: 'ONCE' as ReviewRuleRepetition,
+        description: '',
+      },
+      {
+        id: uuidv4(),
+        value: 90,
+        unit: 'DAYS' as ReviewRuleUnit,
+        repetition: 'ONCE' as ReviewRuleRepetition,
+        description: '',
+      },
+    ];
+    form.setFieldsValue({ rules: defaultRules });
+    message.info('规则已重置为默认值，请记得点击保存。');
+  };
+
+  const globalRemindersFormEnabled = Form.useWatch('enabled', form);
 
   return (
-    <div style={{ padding: '20px 40px', maxWidth: '1120px', margin: '0 auto' }}>
-      <Form form={form} layout="vertical" onFinish={onFinish}>
-        <Card style={{ marginBottom: '24px' }}>
-          <Title level={4}>通用复习提醒设置</Title>
-          <Paragraph type="secondary">
-            如果关闭，则不会进行任何提醒通知，下方所有相关设置也将被禁用。
-          </Paragraph>
-          <Form.Item label="开启提醒服务">
-            <Switch
-              checked={globalRemindersEnabled}
-              onChange={setGlobalRemindersEnabled}
-            />
+    <Spin spinning={loadingInitialSettings} tip="加载中...">
+      <Card title={<Title level={3}>复习参数设置</Title>}>
+        <Paragraph type="secondary">
+          配置系统的全局复习提醒、通知渠道以及自定义复习规则模板。
+        </Paragraph>
+
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={onFinish}
+          initialValues={{
+            enabled: true,
+            emailNotifications: true,
+            appNotifications: true,
+            rules: [],
+          }}
+        >
+          <Form.Item<GlobalReviewSettingsDto>
+            name="enabled"
+            label={null}
+            valuePropName="checked"
+          >
+            <SwitchFormItem label="开启提醒服务" />
           </Form.Item>
-        </Card>
 
-        <Card style={{ marginBottom: '24px' }}>
-          <Title level={4}>通知渠道</Title>
-          <Paragraph type="secondary">
-            选择接收复习提醒的渠道。仅当提醒服务开启时有效。
-          </Paragraph>
-          <List itemLayout="horizontal">
-            <List.Item
-              actions={[
-                <Switch
-                  key="email-switch"
-                  checked={emailNotifications}
-                  onChange={setEmailNotifications}
-                  disabled={!globalRemindersEnabled}
-                />,
-              ]}
-            >
-              <List.Item.Meta
-                title={<Text strong>电子邮件提醒</Text>}
-                description="通过电子邮件接收复习提醒。"
-              />
-            </List.Item>
-            <Divider style={{ margin: '0' }} />
-            <List.Item
-              actions={[
-                <Switch
-                  key="app-switch"
-                  checked={appNotifications}
-                  onChange={setAppNotifications}
-                  disabled={!globalRemindersEnabled}
-                />,
-              ]}
-            >
-              <List.Item.Meta
-                title={<Text strong>应用内推送提醒</Text>}
-                description="通过应用内推送接收复习提醒。"
-              />
-            </List.Item>
-          </List>
-        </Card>
+          <Divider />
 
-        <Card style={{ marginBottom: '24px' }}>
-          <Title level={4}>自定义复习规则模板</Title>
+          <Title level={4} style={{ marginTop: '20px' }}>
+            通知渠道
+          </Title>
           <Paragraph type="secondary">
-            {`在此处定义提醒规则。仅当上方的"开启提醒服务"打开时生效。`}
+            选择您希望如何接收复习提醒。仅当上方的&quot;开启提醒服务&quot;打开时生效。
           </Paragraph>
-          <List
-            itemLayout="vertical"
-            dataSource={customReminderRules}
-            renderItem={(rule, index) => (
-              <List.Item
-                key={rule.id}
-                style={{
-                  padding: '12px 0',
-                  borderBottom:
-                    index < customReminderRules.length - 1
-                      ? '1px solid #f0f0f0'
-                      : 'none',
-                  opacity: !globalRemindersEnabled ? 0.5 : 1,
-                }}
-              >
-                <Space
-                  align="baseline"
-                  style={{ display: 'flex', width: '100%', flexWrap: 'wrap' }}
+          <Form.Item<GlobalReviewSettingsDto>
+            name="emailNotifications"
+            label={null}
+            valuePropName="checked"
+          >
+            <SwitchFormItem label="邮件通知" />
+          </Form.Item>
+
+          <Form.Item<GlobalReviewSettingsDto>
+            name="appNotifications"
+            valuePropName="checked"
+            label={null}
+          >
+            <SwitchFormItem label="应用内通知" />
+          </Form.Item>
+
+          <Divider />
+
+          <Title level={4} style={{ marginTop: '20px' }}>
+            自定义复习规则模板
+          </Title>
+          <Paragraph type="secondary">
+            在此处定义提醒规则。仅当上方的&quot;开启提醒服务&quot;打开时生效。
+          </Paragraph>
+
+          {saveError && (
+            <Alert
+              message="保存规则时出错"
+              description={saveError.message}
+              type="error"
+              showIcon
+              closable
+              style={{ marginBottom: '16px' }}
+            />
+          )}
+
+          <Form.List name="rules">
+            {(fields, { add, remove }) => (
+              <>
+                <List
+                  itemLayout="horizontal"
+                  dataSource={fields}
+                  locale={{
+                    emptyText: globalRemindersFormEnabled
+                      ? '暂无自定义规则，请添加新的规则。'
+                      : '提醒服务已关闭',
+                  }}
+                  renderItem={(field, index: number) => {
+                    const { key, ...restField } = field;
+                    return (
+                      <List.Item
+                        key={key}
+                        style={{
+                          padding: '12px 0',
+                          borderBottom:
+                            index < fields.length - 1
+                              ? '1px solid #f0f0f0'
+                              : 'none',
+                          opacity: !globalRemindersFormEnabled ? 0.5 : 1,
+                        }}
+                        actions={[
+                          <Popconfirm
+                            key={`delete-${key}`}
+                            title="确定删除这条规则吗？"
+                            onConfirm={() => remove(field.name)}
+                            okText="确定"
+                            cancelText="取消"
+                          >
+                            <Button
+                              type="text"
+                              danger
+                              icon={<DeleteOutlined />}
+                            >
+                              删除
+                            </Button>
+                          </Popconfirm>,
+                        ]}
+                      >
+                        <Space align="baseline">
+                          <Form.Item
+                            {...restField}
+                            name={[field.name, 'value']}
+                            rules={[
+                              { required: true, message: '请输入时间值' },
+                              { type: 'number', min: 1, message: '必须大于0' },
+                            ]}
+                            noStyle
+                          >
+                            <InputNumber
+                              placeholder="时间值 (>0)"
+                              style={{ width: '120px' }}
+                            />
+                          </Form.Item>
+                          <Form.Item
+                            {...restField}
+                            name={[field.name, 'unit']}
+                            rules={[{ required: true, message: '请选择单位' }]}
+                            noStyle
+                          >
+                            <Select
+                              suffixIcon={<DownOutlined />}
+                              style={{ width: '110px' }}
+                              options={friendlyReminderUnitOptions}
+                            />
+                          </Form.Item>
+                          <Form.Item
+                            {...restField}
+                            name={[field.name, 'repetition']}
+                            rules={[{ required: true, message: '请选择周期' }]}
+                            noStyle
+                          >
+                            <Select
+                              suffixIcon={<DownOutlined />}
+                              style={{ width: '110px' }}
+                              options={repetitionOptions}
+                            />
+                          </Form.Item>
+                          <Form.Item
+                            {...restField}
+                            name={[field.name, 'description']}
+                            noStyle
+                          >
+                            <Input
+                              placeholder="规则描述 (可选)"
+                              style={{ width: '180px' }}
+                            />
+                          </Form.Item>
+                        </Space>
+                      </List.Item>
+                    );
+                  }}
+                />
+                <Button
+                  type="dashed"
+                  onClick={() =>
+                    add({
+                      id: uuidv4(),
+                      value: 1,
+                      unit: 'DAYS' as ReviewRuleUnit,
+                      repetition: 'ONCE' as ReviewRuleRepetition,
+                      description: '',
+                    })
+                  }
+                  icon={<PlusOutlined />}
+                  style={{ marginTop: '12px', width: '100%' }}
+                  size="large"
                 >
-                  <Text
-                    style={{ minWidth: '60px' }}
-                  >{`规则 ${index + 1}:`}</Text>
-                  <InputNumber
-                    min={1}
-                    value={rule.value}
-                    onChange={(value) =>
-                      handleUpdateCustomRule(rule.id, 'value', value)
-                    }
-                    placeholder="时间值 (>0)"
-                    style={{ width: '120px', marginRight: '8px' }}
-                    disabled={!globalRemindersEnabled}
-                  />
-                  <Select
-                    value={rule.unit}
-                    onChange={(value) =>
-                      handleUpdateCustomRule(rule.id, 'unit', value)
-                    }
-                    suffixIcon={<DownOutlined />}
-                    style={{ width: '110px', marginRight: '8px' }}
-                    disabled={!globalRemindersEnabled}
-                  >
-                    {reminderUnitOptions.map((opt) => (
-                      <Option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </Option>
-                    ))}
-                  </Select>
-                  <Select
-                    value={rule.repetition}
-                    onChange={(value) =>
-                      handleUpdateCustomRule(rule.id, 'repetition', value)
-                    }
-                    suffixIcon={<DownOutlined />}
-                    style={{ width: '100px', marginRight: '8px' }}
-                    disabled={!globalRemindersEnabled}
-                  >
-                    {repetitionOptions.map((opt) => (
-                      <Option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </Option>
-                    ))}
-                  </Select>
-                  <Popconfirm
-                    title="确定要删除这条规则吗？"
-                    onConfirm={() => handleDeleteCustomRule(rule.id)}
-                    okText="确定"
-                    cancelText="取消"
-                    disabled={!globalRemindersEnabled}
-                  >
-                    <Button
-                      icon={<DeleteOutlined />}
-                      type="text"
-                      danger
-                      style={{ marginLeft: 'auto' }}
-                      disabled={!globalRemindersEnabled}
-                    />
-                  </Popconfirm>
-                </Space>
-              </List.Item>
+                  添加新规则
+                </Button>
+                <Button
+                  icon={<UndoOutlined />}
+                  onClick={handleResetRules}
+                  style={{ marginTop: '12px', marginLeft: '8px' }}
+                >
+                  重置规则
+                </Button>
+              </>
             )}
-          />
-          <Button
-            type="dashed"
-            onClick={handleAddCustomRule}
-            icon={<PlusOutlined />}
-            size="large"
-            style={{ marginTop: '16px', width: '100%' }}
-            disabled={!globalRemindersEnabled}
-          >
-            添加新规则
-          </Button>
-        </Card>
+          </Form.List>
 
-        <Form.Item style={{ textAlign: 'right' }}>
-          <Button
-            type="primary"
-            htmlType="submit"
-            icon={<SaveOutlined />}
-            disabled={isSaveDisabled}
-          >
-            保存设置
-          </Button>
-        </Form.Item>
-      </Form>
-    </div>
+          <Divider />
+
+          <Form.Item style={{ marginTop: '24px', textAlign: 'right' }}>
+            <Button
+              type="primary"
+              htmlType="submit"
+              icon={<SaveOutlined />}
+              loading={savingSettings}
+              style={{ minWidth: '120px' }}
+            >
+              保存设置
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
+    </Spin>
   );
 }

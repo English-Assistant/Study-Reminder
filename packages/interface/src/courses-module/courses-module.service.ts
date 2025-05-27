@@ -6,7 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
-import { Course } from '../../generated/prisma'; // User 移除
+import { Course } from '@prisma/client';
 
 @Injectable()
 export class CoursesModuleService {

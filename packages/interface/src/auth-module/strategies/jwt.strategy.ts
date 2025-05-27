@@ -4,22 +4,31 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { jwtConstants } from '../constants';
 import {
   UsersModuleService,
-  UserWithoutPassword,
-} from '../../users-module/users-module.service'; // 确保路径正确
+  // UserWithoutPassword, // 不再直接返回 UserWithoutPassword，而是映射后的对象
+} from '../../users-module/users-module.service';
 
 export interface JwtPayload {
   username: string;
-  sub: string; // 通常是用户ID
-  roles?: string[]; // 可选：角色信息
+  sub: string;
+  roles?: string[];
+}
+
+// 定义期望附加到请求上的用户对象结构
+// 这应该与控制器中 AuthenticatedRequest 定义的 user 结构一致
+export interface AuthenticatedUserPayload {
+  userId: string;
+  username: string;
+  // 可以根据需要从 UserWithoutPassword 中添加其他安全字段
+  // email?: string; // 示例
 }
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private usersService: UsersModuleService) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(), // 从 Authorization header (Bearer token) 中提取 JWT
-      ignoreExpiration: false, // 确保 token 未过期
-      secretOrKey: jwtConstants.secret, // 使用我们定义的密钥
+      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      ignoreExpiration: false,
+      secretOrKey: jwtConstants.secret,
     });
   }
 
@@ -29,16 +38,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
    * @param payload JWT 载荷
    * @returns 返回的用户对象将被 NestJS 附加到 Request 对象上 (例如 req.user)
    */
-  async validate(payload: JwtPayload): Promise<UserWithoutPassword> {
-    // 可以在这里根据 payload 中的用户ID去数据库查找更完整的用户信息
-    // 或者如果 payload 中信息足够，直接返回部分信息
-    // 这里我们假设 sub 字段是用户ID
-    const user = await this.usersService.findOneById(payload.sub);
-    if (!user) {
-      // 如果根据 payload 中的信息找不到用户 (例如用户已被删除)，则抛出未授权异常
+  async validate(payload: JwtPayload): Promise<AuthenticatedUserPayload> {
+    // 修改返回类型
+    const userFromDb = await this.usersService.findOneById(payload.sub);
+    if (!userFromDb) {
       throw new UnauthorizedException('用户不存在或已被禁用');
     }
-    // 返回的用户信息不应包含密码等敏感数据
-    return user;
+    // 将从数据库获取的用户对象映射到 AuthenticatedUserPayload 结构
+    return {
+      userId: userFromDb.id, // 使用数据库中的 id 作为 userId
+      username: userFromDb.username,
+      // 如果 UserWithoutPassword 有其他需要暴露给 req.user 的安全字段，可以在此添加
+      // email: userFromDb.email, // 示例，前提是 userFromDb 有 email 字段
+    };
   }
 }

@@ -5,27 +5,19 @@ import type { GlobalApiTypes } from '@/types/api';
 // 导入控制器
 import type { ScheduledReviewsModuleController } from '@y/interface/scheduled-reviews-module/scheduled-reviews-module.controller.ts';
 
-// 导入用作参数的 DTO
-import type { MarkReviewAsDoneDto } from '@y/interface/scheduled-reviews-module/dto/mark-review-as-done.dto.ts';
 // ScheduledReviewDto 将从控制器方法的返回类型中推断出来
 
 // 获取计划复习列表
-export async function getScheduledReviews() {
-  const response =
-    await request.get<
-      GlobalApiTypes<
-        ReturnType<ScheduledReviewsModuleController['getScheduledReviews']>
-      >
-    >('/scheduled-reviews');
-  return response.data.data;
+// 注意：后端支持 from 和 to 日期查询参数，如果前端需要，可以在这里添加
+interface GetScheduledReviewsParams {
+  from?: string; // ISO date string
+  to?: string; // ISO date string
 }
-
-// 标记复习项为已完成
-export async function markReviewAsDone(data: MarkReviewAsDoneDto) {
-  const response = await request.post<
+export async function getScheduledReviews(params?: GetScheduledReviewsParams) {
+  const response = await request.get<
     GlobalApiTypes<
-      ReturnType<ScheduledReviewsModuleController['markReviewAsDone']>
+      ReturnType<ScheduledReviewsModuleController['getScheduledReviews']>
     >
-  >('/scheduled-reviews/mark-done', data);
+  >('/scheduled-reviews', { params });
   return response.data.data;
 }

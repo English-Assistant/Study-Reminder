@@ -16,14 +16,15 @@ export class CoursesModuleService {
     createCourseDto: CreateCourseDto,
     userId: string,
   ): Promise<Course> {
-    const { title, ...restOfDto } = createCourseDto;
-    // 不允许用户创建 isDefault 为 true 的课程，这个由 ReviewSettingsService 内部管理
+    const { title, description, color } = createCourseDto;
     return await this.prisma.course.create({
       data: {
         name: title,
-        ...restOfDto,
-        userId,
-        isDefault: false, // 确保用户创建的课程不是默认模板
+        description,
+        color,
+        user: {
+          connect: { id: userId },
+        },
       },
     });
   }
@@ -32,7 +33,6 @@ export class CoursesModuleService {
     return await this.prisma.course.findMany({
       where: {
         userId,
-        isDefault: false, // 通常不返回作为全局模板的课程
       },
       orderBy: {
         createdAt: 'desc',
@@ -53,11 +53,6 @@ export class CoursesModuleService {
       throw new ForbiddenException('您无权访问此课程');
     }
 
-    // 不应允许用户直接获取 isDefault 为 true 的课程，除非有特殊逻辑需要
-    if (course.isDefault) {
-      throw new ForbiddenException('无法直接访问默认模板课程');
-    }
-
     return course;
   }
 
@@ -74,10 +69,7 @@ export class CoursesModuleService {
 
     const { title, ...restOfDto } = updateCourseDto;
     const dataToUpdate: Partial<
-      Omit<
-        Course,
-        'id' | 'userId' | 'createdAt' | 'updatedAt' | 'isDefault' | 'user'
-      >
+      Omit<Course, 'id' | 'userId' | 'createdAt' | 'updatedAt' | 'user'>
     > = {
       ...restOfDto, // This will include description and color if they are present
     };

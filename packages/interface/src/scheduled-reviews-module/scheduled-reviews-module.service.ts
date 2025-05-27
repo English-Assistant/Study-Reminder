@@ -51,7 +51,7 @@ export class ScheduledReviewsModuleService {
     let scheduledReviews: ScheduledReviewDto[] = [];
 
     const userCourses = await this.prisma.course.findMany({
-      where: { userId, isDefault: false }, // We only generate reviews for user's own non-default courses
+      where: { userId },
     });
 
     const globalSettings =

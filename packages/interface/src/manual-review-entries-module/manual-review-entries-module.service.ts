@@ -48,15 +48,8 @@ export class ManualReviewEntriesModuleService {
       throw new NotFoundException(`ID 为 ${courseId} 的课程不存在`);
     }
 
-    if (course.userId !== userId && !course.isDefault) {
-      throw new ForbiddenException(
-        '您只能为自己创建的课程或全局课程添加手动复习条目。',
-      );
-    }
-    if (course.userId !== userId && course.isDefault) {
-      this.logger.log(
-        `User ${userId} creating manual entry for default course ${courseId}`,
-      );
+    if (course.userId !== userId) {
+      throw new ForbiddenException('您只能为自己创建的课程添加手动复习条目。');
     }
 
     let reviewDateTime: Date;
@@ -164,10 +157,8 @@ export class ManualReviewEntriesModuleService {
       if (!course) {
         throw new NotFoundException(`ID 为 ${newCourseId} 的新课程不存在`);
       }
-      if (course.userId !== userId && !course.isDefault) {
-        throw new ForbiddenException(
-          '您只能将条目关联到自己创建的课程或全局课程。',
-        );
+      if (course.userId !== userId) {
+        throw new ForbiddenException('您只能将条目关联到自己创建的课程。');
       }
       dataToUpdate.course = { connect: { id: newCourseId } };
     }

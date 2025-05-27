@@ -63,7 +63,6 @@ model Course {
   color       String // 课程颜色标记 (例如十六进制颜色码或颜色名称)
   userId      String // 创建该课程的用户ID (外键)
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade) // 关联到 User 模型，用户删除时级联删除其课程
-  isDefault   Boolean  @default(false) // 是否为全局复习规则的默认模板课程 (例如，用于全局规则的那个特殊"课程")
   createdAt   DateTime @default(now()) // 创建时间
   updatedAt   DateTime @updatedAt // 更新时间
 

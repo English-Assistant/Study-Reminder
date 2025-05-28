@@ -11,24 +11,24 @@ import { EjsAdapter } from '@nestjs-modules/mailer/dist/adapters/ejs.adapter'; /
 import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModuleModule } from './auth-module/auth-module.module';
-import { UsersModuleModule } from './users-module/users-module.module';
-import { CoursesModuleModule } from './courses-module/courses-module.module';
-import { ReviewSettingsModuleModule } from './review-settings-module/review-settings-module.module';
-import { ScheduledReviewsModuleModule } from './scheduled-reviews-module/scheduled-reviews-module.module';
-import { ManualReviewEntriesModule } from './manual-review-entries-module/manual-review-entries.module';
-// import { LearningActivitiesModuleModule } from './learning-activities-module/learning-activities-module.module'; // REMOVED
-// import { UserCourseProgressModuleModule } from './user-course-progress-module/user-course-progress-module.module'; // REMOVED
-// import { UserStatisticsModuleModule } from './user-statistics-module/user-statistics-module.module'; // REMOVED
+import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
+import { CoursesModule } from './courses/courses.module';
+import { ReviewSettingsModule } from './review-settings/review-settings.module';
+// import { ScheduledReviewsModule } from './scheduled-reviews/scheduled-reviews.module'; // REMOVED
+// import { ManualReviewEntriesModule } from './manual-review-entries/manual-review-entries.module'; // REMOVED
+import { StudyRecordsModule } from './study-records/study-records.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { NotificationsModule } from './notifications/notifications.module';
 // import { UserPreferencesModule } from './user-preferences/user-preferences.module'; // REMOVED
 import { ScheduleModule } from '@nestjs/schedule';
+import { UpcomingReviewsModule } from './upcoming-reviews/upcoming-reviews.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: `.env.${process.env.NODE_ENV || 'development'}`,
     }),
     ScheduleModule.forRoot(),
     MailerModule.forRootAsync({
@@ -57,17 +57,15 @@ import { ScheduleModule } from '@nestjs/schedule';
       inject: [ConfigService],
     }),
     PrismaModule,
-    AuthModuleModule,
-    UsersModuleModule,
-    CoursesModuleModule,
-    ReviewSettingsModuleModule,
-    ScheduledReviewsModuleModule,
-    ManualReviewEntriesModule,
-    // LearningActivitiesModuleModule, // REMOVED
-    // UserCourseProgressModuleModule, // REMOVED
-    // UserStatisticsModuleModule, // REMOVED
-    // UserPreferencesModule, // REMOVED
+    AuthModule,
+    UsersModule,
+    CoursesModule,
+    ReviewSettingsModule,
+    StudyRecordsModule,
+    // ScheduledReviewsModule, // REMOVED
+    // ManualReviewEntriesModule, // REMOVED
     NotificationsModule,
+    UpcomingReviewsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

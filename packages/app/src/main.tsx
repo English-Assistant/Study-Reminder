@@ -6,12 +6,14 @@ import 'virtual:uno.css';
 import { ConfigProvider, App as AntApp } from 'antd';
 import zhCN from 'antd/locale/zh_CN'; // for date-picker i18n
 import 'dayjs/locale/zh-cn';
+import dayjs from 'dayjs';
 import '@unocss/reset/tailwind-compat.css';
-
 import { RouterProvider, createRouter } from '@tanstack/react-router';
 
 // Import the generated route tree
 import { routeTree } from './routeTree.gen';
+
+dayjs.locale('zh-cn'); // If not already global, might be needed
 
 // Create a new router instance
 const router = createRouter({ routeTree });

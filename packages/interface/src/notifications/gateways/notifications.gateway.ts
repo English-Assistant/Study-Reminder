@@ -11,13 +11,10 @@ import { Server, Socket } from 'socket.io';
 import { Logger, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
-import {
-  UsersModuleService,
-  UserWithoutPassword,
-} from '../../users-module/users-module.service';
+import { UsersService, UserWithoutPassword } from '../../users/users.service';
 
 interface AuthenticatedSocket extends Socket {
-  user?: UserWithoutPassword;
+  user: UserWithoutPassword;
 }
 
 @WebSocketGateway({
@@ -35,7 +32,7 @@ export class NotificationsGateway
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
-    private readonly usersService: UsersModuleService,
+    private readonly usersService: UsersService,
   ) {}
 
   handleConnection(client: AuthenticatedSocket) {

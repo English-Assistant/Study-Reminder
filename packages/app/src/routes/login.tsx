@@ -5,7 +5,7 @@ import { UserOutlined, LockOutlined } from '@ant-design/icons';
 import bg from '@/assets/images/bg.png';
 import { loginOrRegister } from '@/apis/auth';
 import { useRequest } from 'ahooks';
-import type { LoginOrRegisterDto } from '@y/interface/auth-module/dto/login-or-register.dto.ts';
+import type { LoginOrRegisterDto } from '@y/interface/auth/dto/login-or-register.dto.ts';
 import { useUserStore } from '@/stores/user.store';
 
 const { Title, Text } = Typography;

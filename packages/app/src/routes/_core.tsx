@@ -75,7 +75,7 @@ export const Route = createFileRoute('/_core')({
 
 function CoreLayoutComponent() {
   const {
-    token: { colorBgContainer, borderRadiusLG },
+    token: { colorBgContainer },
   } = theme.useToken();
 
   const currentPath = useRouterState({ select: (s) => s.location.pathname });
@@ -168,7 +168,6 @@ function CoreLayoutComponent() {
               padding: 24,
               margin: 0,
               background: colorBgContainer,
-              borderRadius: borderRadiusLG,
               overflowY: 'auto',
               flexGrow: 1,
             }}

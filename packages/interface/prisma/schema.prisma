@@ -15,106 +15,85 @@ datasource db {
   url      = env("DATABASE_URL") // 从环境变量 DATABASE_URL 读取数据库连接字符串
 }
 
-// --------------- 枚举类型 (ENUMS) ------------------
+//
+// ====== 枚举定义区域 ======
+//
 
-// 复习规则的时间单位
-enum ReviewRuleUnit {
-  MINUTES // 分钟
-  HOURS // 小时
-  DAYS // 天
-  MONTHS // 月
+/// 复习时间间隔（用于构建遗忘曲线）
+enum IntervalUnit {
+  MINUTE // 分钟
+  HOUR // 小时
+  DAY // 天
 }
 
-// 复习规则的重复类型
-enum ReviewRuleRepetition {
-  ONCE // 一次性
-  LOOP // 循环
+/// 循环模式：只提醒一次或循环提醒
+enum ReviewMode {
+  ONCE // 一次性复习
+  RECURRING // 循环复习
 }
 
-// --------------- 数据模型 (MODELS) ------------------
+//
+// ====== 模型定义区域 ======
+//
 
-// 用户模型
+/// 用户表：记录账号信息
 model User {
-  id        String   @id @default(uuid()) // 用户ID，主键，默认为 UUID
-  username  String   @unique // 用户名，唯一
-  password  String // 密码 (存储时应为哈希后的密码)
-  createdAt DateTime @default(now()) // 创建时间，默认为当前时间
-  updatedAt DateTime @updatedAt // 更新时间，自动更新
-
-  // --- 新增用户通知偏好设置字段 ---
-  email                      String? @unique // 用户邮箱, 用于邮件通知
-  globalNotificationsEnabled Boolean @default(true) // 全局通知总开关
-  emailNotificationsEnabled  Boolean @default(true) // 邮件通知开关
-  appNotificationsEnabled    Boolean @default(true) // 应用内/浏览器通知开关
-  // --- 结束新增字段 ---
-
-  // 关联关系
-  courses             Course[] // 用户创建的课程列表
-  reviewRules         ReviewRule[] // 用户自定义的复习规则列表 (如果允许用户覆盖全局规则)
-  manualReviewEntries ManualReviewEntry[] // 用户手动添加的复习条目
-  UserGlobalSettings  UserGlobalSettings?
+  id           String        @id @default(cuid()) // 用户ID
+  username     String        @unique // 用户名调整为唯一
+  password     String // 加密后的密码
+  email        String        @unique // 邮箱，唯一且必填
+  settings     Setting? // 一对一设置记录
+  reviewRules  ReviewRule[] // 用户的复习规则
+  courses      Course[] // 用户的课程
+  studyRecords StudyRecord[] // 用户的打卡记录
+  createdAt    DateTime      @default(now()) // 注册时间
+  updatedAt    DateTime      @updatedAt // 最后更新时间
 }
 
-// 课程模型
-model Course {
-  id          String   @id @default(uuid()) // 课程ID，主键，默认为 UUID
-  name        String // 课程名称
-  description String? // 课程描述 (可选)
-  color       String // 课程颜色标记 (例如十六进制颜色码或颜色名称)
-  userId      String // 创建该课程的用户ID (外键)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade) // 关联到 User 模型，用户删除时级联删除其课程
-  createdAt   DateTime @default(now()) // 创建时间
-  updatedAt   DateTime @updatedAt // 更新时间
-
-  // 关联关系
-  manualReviewEntries ManualReviewEntry[] // 与该课程相关的手动复习条目
-  rules               ReviewRule[] // 应用于该课程的复习规则
+/// 设置表：用户通知偏好
+model Setting {
+  id                 String  @id @default(cuid()) // 设置ID
+  userId             String  @unique // 用户ID
+  globalNotification Boolean @default(true) // 是否开启全局通知
+  emailNotification  Boolean @default(true) // 是否开启邮箱通知
+  inAppNotification  Boolean @default(true) // 是否开启站内通知
+  user               User    @relation(fields: [userId], references: [id])
 }
 
-// 复习规则模型
+/// 复习规则表：用于计算复习提醒时间
 model ReviewRule {
-  id          String               @id @default(uuid()) // 规则ID，主键，默认为 UUID
-  value       Int // 时间间隔值 (例如：20, 1, 2)
-  unit        ReviewRuleUnit // 时间单位 (MINUTES, HOURS, DAYS, MONTHS)
-  repetition  ReviewRuleRepetition // 重复类型 (ONCE, LOOP)
-  description String? // 规则描述 (可选，例如 "艾宾浩斯第1周期")
-  createdAt   DateTime             @default(now()) // 创建时间
-  updatedAt   DateTime             @updatedAt // 更新时间
-
-  // 关联到用户全局设置
-  globalSettingsId String // 外键，指向 UserGlobalSettings 模型
-  globalSettings   UserGlobalSettings @relation(fields: [globalSettingsId], references: [id], onDelete: Cascade)
-  User             User?              @relation(fields: [userId], references: [id])
-  userId           String?
-  Course           Course?            @relation(fields: [courseId], references: [id])
-  courseId         String?
+  id     String       @id @default(cuid()) // 主键
+  userId String
+  value  Int // 时间数值
+  unit   IntervalUnit // 时间单位：分钟/小时/天
+  mode   ReviewMode   @default(ONCE) // 循环 or 一次
+  note   String? // 备注
+  user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
-// 手动复习条目模型
-model ManualReviewEntry {
-  id             String    @id @default(uuid()) // 条目ID，主键，默认为 UUID
-  userId         String // 用户ID (外键)
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade) // 关联到 User 模型
-  courseId       String // 课程ID (外键), 与特定课程关联
-  course         Course    @relation(fields: [courseId], references: [id], onDelete: Cascade) // 关联到 Course 模型
-  title          String // 复习条目标题
-  description    String? // 复习条目描述 (可选)
-  reviewDate     DateTime // 计划复习的日期
-  reviewTime     String? // 具体的复习时间 (可选, 例如 "14:30")
-  lastNotifiedAt DateTime? // 上次通知时间 (可选)
-  createdAt      DateTime  @default(now()) // 创建时间
-  updatedAt      DateTime  @updatedAt // 更新时间
+/// 课程表：每个用户可以定义多个课程
+model Course {
+  id           String        @id @default(cuid()) // 课程ID
+  userId       String // 所属用户
+  name         String // 课程名称
+  color        String // UI颜色
+  note         String? // 可选备注
+  user         User          @relation(fields: [userId], references: [id])
+  studyRecords StudyRecord[] // 对应打卡记录
+  createdAt    DateTime      @default(now()) // 创建时间
 }
 
-// 用户全局设置模型
-model UserGlobalSettings {
-  id                 String       @id @default(uuid())
-  user               User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId             String       @unique
-  enabled            Boolean      @default(true)
-  emailNotifications Boolean      @default(false)
-  appNotifications   Boolean      @default(true)
-  reviewRules        ReviewRule[] // Prisma 会自动处理反向关系，如果需要显式命名，之前的方式也可
+/// 打卡记录表：记录用户每次打卡的信息
+model StudyRecord {
+  id        String   @id @default(cuid()) // 记录ID
+  userId    String // 所属用户
+  courseId  String // 所属课程
+  studiedAt DateTime // 打卡完成的确切时间
+  textTitle String // 打卡的课文标题
+  note      String? // 可选备注
+  user      User     @relation(fields: [userId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+  createdAt DateTime @default(now()) // 创建时间
 
-  createdAt DateTime @default(now())
+  @@index([userId, studiedAt]) // 用于快速查询某用户在某个时间点之后的打卡记录
 }

@@ -5,18 +5,36 @@ import { join } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsGateway } from '../gateways/notifications.gateway';
 import { Cron, CronExpression } from '@nestjs/schedule';
+import {
+  User,
+  Setting,
+  StudyRecord,
+  ReviewRule,
+  IntervalUnit,
+  ReviewMode,
+} from '@prisma/client';
+import * as dayjs from 'dayjs';
+import * as utc from 'dayjs/plugin/utc';
+import * as customParseFormat from 'dayjs/plugin/customParseFormat';
+
+dayjs.extend(utc);
+dayjs.extend(customParseFormat);
+
+// 辅助类型，用于组合用户及其相关数据
+type UserWithRelations = User & {
+  settings: Setting | null;
+  reviewRules: ReviewRule[];
+  studyRecords: StudyRecord[];
+};
 
 export interface ReviewReminderDetails {
-  itemName: string;
+  itemName: string; // 例如 StudyRecord.textTitle
+  // 可以根据需要添加更多字段，如 courseName, studyDate 等
 }
-
-const MIN_NOTIFICATION_INTERVAL_HOURS = 6; // 最小通知间隔（小时）
-const PAST_WINDOW_MINUTES = 10; // 检查过去多少分钟内的项目
-const FUTURE_WINDOW_MINUTES = 30; // 检查未来多少分钟内的项目
 
 @Injectable()
 export class NotificationsService {
-  private readonly logger = new Logger(NotificationsService.name); // 添加日志记录器实例
+  private readonly logger = new Logger(NotificationsService.name);
 
   constructor(
     private readonly mailerService: MailerService,
@@ -25,113 +43,172 @@ export class NotificationsService {
     private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
-  @Cron(CronExpression.EVERY_MINUTE) // 更新：每分钟运行一次
-  async handleScheduledReviewChecks() {
-    this.logger.log('运行计划中的复习项检查...');
-    const now = new Date();
-    const pastThreshold = new Date(
-      now.getTime() - PAST_WINDOW_MINUTES * 60 * 1000,
-    );
-    const futureThreshold = new Date(
-      now.getTime() + FUTURE_WINDOW_MINUTES * 60 * 1000,
-    );
-    const minIntervalThreshold = new Date(
-      now.getTime() - MIN_NOTIFICATION_INTERVAL_HOURS * 60 * 60 * 1000,
-    );
+  private constructBaseTime(studyRecord: StudyRecord): dayjs.Dayjs {
+    // studyRecord.studiedAt is a Date object from Prisma, assumed to be UTC.
+    // We directly use it and standardize seconds and milliseconds.
+    return dayjs(studyRecord.studiedAt).utc().second(0).millisecond(0);
+  }
 
-    const users = await this.prisma.user.findMany({
+  private addInterval(
+    date: dayjs.Dayjs,
+    value: number,
+    unit: IntervalUnit,
+  ): dayjs.Dayjs {
+    let dayjsUnit: dayjs.ManipulateType;
+    switch (unit) {
+      case IntervalUnit.MINUTE:
+        dayjsUnit = 'minute';
+        break;
+      case IntervalUnit.HOUR:
+        dayjsUnit = 'hour';
+        break;
+      case IntervalUnit.DAY:
+        dayjsUnit = 'day';
+        break;
+      default:
+        this.logger.warn(`Unsupported IntervalUnit: ${String(unit)}`);
+        return date; // Return original date if unit is unsupported
+    }
+    return date.add(value, dayjsUnit);
+  }
+
+  @Cron(CronExpression.EVERY_MINUTE)
+  async handleScheduledReviewChecks() {
+    this.logger.log('运行计划中的复习项检查 (使用 dayjs)...');
+    const now = dayjs.utc().second(0).millisecond(0); // 当前 UTC 时间，标准化到分钟
+
+    const users = (await this.prisma.user.findMany({
       where: {
-        globalNotificationsEnabled: true,
-        OR: [
-          { emailNotificationsEnabled: true, email: { not: null } },
-          { appNotificationsEnabled: true },
-        ],
+        settings: {
+          globalNotification: true,
+          OR: [{ emailNotification: true }, { inAppNotification: true }],
+        },
       },
       include: {
-        manualReviewEntries: {
-          where: {
-            reviewDate: {
-              gte: pastThreshold, // 大于等于 (现在 - 10 分钟)
-              lte: futureThreshold, // 小于等于 (现在 + 30 分钟)
-            },
-            OR: [
-              // lastNotifiedAt 的条件
-              { lastNotifiedAt: null }, // 从未通知过
-              { lastNotifiedAt: { lt: minIntervalThreshold } }, // 或上次通知在最小间隔之前 (例如6小时前)
-            ],
-          },
-          include: {
-            course: true,
-          },
+        settings: true,
+        reviewRules: true,
+        studyRecords: {
           orderBy: {
-            reviewDate: 'asc',
+            createdAt: 'desc',
           },
         },
       },
-    });
+    })) as UserWithRelations[];
+
+    if (!users || users.length === 0) {
+      this.logger.log('没有找到需要处理通知的用户。');
+      return;
+    }
 
     for (const user of users) {
-      if (!user.manualReviewEntries || user.manualReviewEntries.length === 0) {
+      if (
+        !user.settings ||
+        (!user.settings.emailNotification && !user.settings.inAppNotification)
+      ) {
+        continue;
+      }
+      if (
+        !user.reviewRules ||
+        user.reviewRules.length === 0 ||
+        !user.studyRecords ||
+        user.studyRecords.length === 0
+      ) {
         continue;
       }
 
-      this.logger.log(
-        `处理用户 ${user.id} (${user.username}) 的 ${user.manualReviewEntries.length} 个复习项。`,
-      );
+      this.logger.log(`处理用户 ${user.id} (${user.username}) 的通知。`);
 
-      for (const entry of user.manualReviewEntries) {
-        const reviewDetails: ReviewReminderDetails = {
-          itemName: entry.title,
-        };
-
-        let notifiedByEmail = false;
-        let notifiedByApp = false;
-
-        if (user.emailNotificationsEnabled && user.email) {
-          try {
-            await this.sendReviewReminderEmail(
-              user.email,
-              user.username,
-              reviewDetails,
-            );
-            notifiedByEmail = true;
-          } catch (error) {
-            this.logger.error(
-              `向用户 ${user.id} 发送邮件提醒失败 (条目: ${entry.id}):`,
-              error,
-            );
-          }
-        }
-
-        if (user.appNotificationsEnabled) {
-          try {
-            this.notificationsGateway.sendToUser(user.id, 'reviewReminder', {
-              ...reviewDetails,
-              entryId: entry.id,
-            });
-            notifiedByApp = true;
-          } catch (error) {
-            this.logger.error(
-              `向用户 ${user.id} 发送应用内提醒失败 (条目: ${entry.id}):`,
-              error,
-            );
-          }
-        }
-
-        if (notifiedByEmail || notifiedByApp) {
-          this.logger.log(
-            `已为用户 ${user.id} 的条目 ${entry.id} ('${entry.title}') 发送通知 (邮件: ${notifiedByEmail}, 应用内: ${notifiedByApp})。正在更新 lastNotifiedAt。`,
+      for (const record of user.studyRecords) {
+        const baseTime = this.constructBaseTime(record);
+        if (!baseTime.isValid()) {
+          this.logger.warn(
+            `无效的基础时间 for record ${record.id}. 打卡日期: ${record.studiedAt ? record.studiedAt.toISOString() : 'N/A'}.`,
           );
-          try {
-            await this.prisma.manualReviewEntry.update({
-              where: { id: entry.id },
-              data: { lastNotifiedAt: new Date() },
-            });
-          } catch (error) {
-            this.logger.error(
-              `更新条目 ${entry.id} 的 lastNotifiedAt 失败:`,
-              error,
+          continue;
+        }
+
+        for (const rule of user.reviewRules) {
+          let expectedNotificationTime: dayjs.Dayjs | null = null;
+
+          if (rule.mode === ReviewMode.ONCE) {
+            const potentialTime = this.addInterval(
+              baseTime,
+              rule.value,
+              rule.unit,
             );
+            if (potentialTime.isSame(now, 'minute')) {
+              expectedNotificationTime = potentialTime;
+            }
+          } else if (rule.mode === ReviewMode.RECURRING) {
+            let currentExpectedTime = this.addInterval(
+              baseTime,
+              rule.value,
+              rule.unit,
+            );
+
+            if (currentExpectedTime.isAfter(now, 'minute')) {
+              continue;
+            }
+
+            while (currentExpectedTime.isBefore(now, 'minute')) {
+              currentExpectedTime = this.addInterval(
+                currentExpectedTime,
+                rule.value,
+                rule.unit,
+              );
+            }
+
+            if (currentExpectedTime.isSame(now, 'minute')) {
+              expectedNotificationTime = currentExpectedTime;
+            }
+          }
+
+          if (expectedNotificationTime) {
+            this.logger.log(
+              `为用户 ${user.id} 的学习记录 "${record.textTitle}" (ID: ${record.id}) 基于规则 (ID: ${rule.id}) 发现了匹配的提醒时间: ${expectedNotificationTime.toISOString()}`,
+            );
+
+            const reviewDetails: ReviewReminderDetails = {
+              itemName: record.textTitle,
+            };
+
+            if (user.settings.emailNotification && user.email) {
+              try {
+                await this.sendReviewReminderEmail(
+                  user.email,
+                  user.username,
+                  reviewDetails,
+                  rule,
+                );
+              } catch (error) {
+                this.logger.error(
+                  `向用户 ${user.id} (${user.email}) 发送邮件提醒失败 (记录: ${record.id}, 规则: ${rule.id}):`,
+                  error,
+                );
+              }
+            }
+
+            if (user.settings.inAppNotification) {
+              try {
+                this.notificationsGateway.sendToUser(
+                  user.id,
+                  'reviewReminder',
+                  {
+                    ...reviewDetails,
+                    studyRecordId: record.id,
+                    ruleId: rule.id,
+                  },
+                );
+                this.logger.log(
+                  `已向用户 ${user.id} 发送应用内提醒 (记录: ${record.id}, 规则: ${rule.id})`,
+                );
+              } catch (error) {
+                this.logger.error(
+                  `向用户 ${user.id} 发送应用内提醒失败 (记录: ${record.id}, 规则: ${rule.id}):`,
+                  error,
+                );
+              }
+            }
           }
         }
       }
@@ -143,18 +220,27 @@ export class NotificationsService {
     email: string,
     username: string,
     reviewDetails: ReviewReminderDetails,
+    rule: ReviewRule,
   ): Promise<void> {
+    const subject = `复习提醒: ${reviewDetails.itemName}`;
+    this.logger.log(
+      `准备发送邮件提醒给 ${email} (用户: ${username}), 项目: ${reviewDetails.itemName}, 规则: ${rule.id}`,
+    );
+
     await this.mailerService.sendMail({
       to: email,
-      subject: `复习提醒: ${reviewDetails.itemName}`,
+      subject: subject,
       template: join('review-reminder'),
       context: {
         itemName: reviewDetails.itemName,
         userName: username,
+        ruleDescription:
+          rule.note ||
+          `${rule.value} ${rule.unit === 'DAY' ? '天' : rule.unit === 'HOUR' ? '小时' : '分钟'}后${rule.mode === 'RECURRING' ? ' (周期性)' : ''}`,
       },
     });
     this.logger.log(
-      `已成功发送复习提醒邮件给 ${email} (用户: ${username})，项目: ${reviewDetails.itemName}`,
+      `已成功发送复习提醒邮件给 ${email} (用户: ${username}), 项目: ${reviewDetails.itemName}`,
     );
   }
 

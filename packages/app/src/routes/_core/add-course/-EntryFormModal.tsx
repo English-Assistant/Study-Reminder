@@ -10,7 +10,7 @@ import {
   App,
   Spin,
 } from 'antd';
-import type { Dayjs } from 'dayjs';
+import { Dayjs } from 'dayjs';
 import type { FormInstance } from 'antd';
 import { useRequest } from 'ahooks';
 import {
@@ -108,38 +108,32 @@ export function EntryFormModal({
     }
   }, [editingItem, form, isVisible, isEditMode]);
 
-  const handleOk = () => {
-    form
-      .validateFields()
-      .then((values: EntryFormValues) => {
-        if (isEditMode && editingItem) {
-          const payload: UpdateManualReviewEntryDto = {
-            title: values.title,
-            description: values.description,
-            courseId: values.courseId,
-            reviewDate: editingItem.reviewDate,
-            reviewTime: values.startTime
-              ? values.startTime.format('HH:mm')
-              : undefined,
-          };
-          runUpdateEntry(editingItem.id, payload);
-        } else {
-          const payload: CreateManualReviewEntryDto = {
-            title: values.title,
-            description: values.description,
-            courseId: values.courseId,
-            reviewDate: selectedDate.format('YYYY-MM-DD'),
-            reviewTime: values.startTime
-              ? values.startTime.format('HH:mm')
-              : undefined,
-          };
-          runCreateEntry(payload);
-        }
-      })
-      .catch((info: any) => {
-        console.log('Validate Failed:', info);
-        message.error('请检查表单输入!');
-      });
+  const handleOk = async () => {
+    const values = await form.validateFields();
+
+    if (isEditMode && editingItem) {
+      const payload: UpdateManualReviewEntryDto = {
+        title: values.title,
+        description: values.description,
+        courseId: values.courseId,
+        reviewDate: editingItem.reviewDate,
+        reviewTime: values.startTime
+          ? values.startTime.format('HH:mm')
+          : undefined,
+      };
+      runUpdateEntry(editingItem.id, payload);
+    } else {
+      const payload: CreateManualReviewEntryDto = {
+        title: values.title,
+        description: values.description,
+        courseId: values.courseId,
+        reviewDate: selectedDate.format('YYYY-MM-DD'),
+        reviewTime: values.startTime
+          ? values.startTime.format('HH:mm')
+          : undefined,
+      };
+      runCreateEntry(payload);
+    }
   };
 
   return (
@@ -155,13 +149,15 @@ export function EntryFormModal({
       okText={isEditMode ? '保存更改' : '添加记录'}
       cancelText="取消"
       confirmLoading={isEditMode ? loadingUpdate : loadingCreate}
-      destroyOnClose
       afterClose={() => form.resetFields()}
     >
       <Form
         form={form}
         layout="vertical"
         name={isEditMode ? 'edit_manual_entry_form' : 'add_manual_entry_form'}
+        initialValues={{
+          startTime: dayjs(),
+        }}
       >
         <Form.Item
           name="title"

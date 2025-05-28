@@ -198,13 +198,14 @@ function SettingsComponent() {
 
   const globalRemindersFormEnabled = Form.useWatch('enabled', form);
 
+  const onUpdateEmail = async () => {
+    const value = await form.validateFields(['email']);
+    console.log(value);
+  };
+
   return (
     <Spin spinning={loadingInitialSettings} tip="加载中...">
-      <Card title={<Title level={3}>复习参数设置</Title>}>
-        <Paragraph type="secondary">
-          配置系统的全局复习提醒、通知渠道以及自定义复习规则模板。
-        </Paragraph>
-
+      <Card title={<Title level={3}>设置</Title>}>
         <Form
           form={form}
           layout="vertical"
@@ -216,6 +217,24 @@ function SettingsComponent() {
             rules: [],
           }}
         >
+          <Form.Item label="邮箱" layout="horizontal">
+            <Space>
+              <Form.Item
+                noStyle
+                name="email"
+                rules={[
+                  { required: true, message: '请输入邮箱' },
+                  { type: 'email', message: '请输入正确的邮箱地址' },
+                ]}
+              >
+                <Input className="w-100" placeholder="请输入邮箱地址" />
+              </Form.Item>
+              <Button type="primary" onClick={onUpdateEmail}>
+                更新邮箱
+              </Button>
+            </Space>
+          </Form.Item>
+
           <Form.Item<GlobalReviewSettingsDto>
             name="enabled"
             label={null}

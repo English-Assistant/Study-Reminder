@@ -17,18 +17,17 @@ import {
   EditOutlined,
   DeleteOutlined,
   PlusOutlined,
-  LoadingOutlined,
 } from '@ant-design/icons';
 import { useState } from 'react';
 import CourseFormModal from './-CourseFormModal';
-import type { CreateCourseDto } from '@y/interface/courses-module/dto/create-course.dto.ts';
-import type { UpdateCourseDto } from '@y/interface/courses-module/dto/update-course.dto.ts';
+import type { CreateCourseDto } from '@y/interface/courses/dto/create-course.dto.ts';
+import type { UpdateCourseDto } from '@y/interface/courses/dto/update-course.dto.ts';
 import { useRequest } from 'ahooks';
 import {
-  getAllCourses,
-  createCourse,
-  updateCourse,
-  deleteCourse,
+  getAllCoursesApi,
+  createCourseApi,
+  updateCourseApi,
+  deleteCourseApi,
 } from '@/apis/courses';
 import type { Course as PrismaCourse } from '@y/interface/common/prisma.type.ts';
 
@@ -46,8 +45,11 @@ function ManageCoursesComponent() {
     data: courses,
     loading: loadingCourses,
     refresh: refreshCourses,
-    error: coursesError,
-  } = useRequest<PrismaCourse[], []>(getAllCourses);
+  } = useRequest<PrismaCourse[], []>(getAllCoursesApi, {
+    onError(e) {
+      message.error(e.message || '获取课程失败');
+    },
+  });
 
   const [searchText, setSearchText] = useState('');
   const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
@@ -60,7 +62,7 @@ function ManageCoursesComponent() {
     useState<PrismaCourse | null>(null);
 
   const { run: runCreateCourse, loading: loadingCreate } = useRequest(
-    createCourse,
+    createCourseApi,
     {
       manual: true,
       onSuccess: (result) => {
@@ -75,7 +77,7 @@ function ManageCoursesComponent() {
   );
 
   const { run: runUpdateCourse, loading: loadingUpdate } = useRequest(
-    updateCourse,
+    updateCourseApi,
     {
       manual: true,
       onSuccess: (result) => {
@@ -91,7 +93,7 @@ function ManageCoursesComponent() {
   );
 
   const { run: runDeleteCourse, loading: loadingDelete } = useRequest(
-    deleteCourse,
+    deleteCourseApi,
     {
       manual: true,
       onSuccess: () => {
@@ -141,79 +143,33 @@ function ManageCoursesComponent() {
   const handleCourseFormSubmit = (values: PrismaCourse) => {
     if (editingCourseData) {
       const updateDto: UpdateCourseDto = {
-        title: values.name,
-        description:
-          values.description === null ? undefined : values.description,
+        name: values.name,
+        note: values.note === null ? undefined : values.note,
         color: values.color,
       };
       runUpdateCourse(editingCourseData.id, updateDto);
     } else {
       const createDto: CreateCourseDto = {
-        title: values.name,
-        description:
-          values.description === null ? undefined : values.description,
+        name: values.name,
+        note: values.note === null ? undefined : values.note,
         color: values.color,
       };
       runCreateCourse(createDto);
     }
   };
 
-  if (loadingCourses) {
-    return (
-      <Layout style={{ background: '#fff', minHeight: '80vh' }}>
-        <Content
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '48px',
-          }}
-        >
-          <Spin indicator={<LoadingOutlined style={{ fontSize: 36 }} spin />} />
-        </Content>
-      </Layout>
-    );
-  }
-
-  if (coursesError) {
-    return (
-      <Layout style={{ background: '#fff', minHeight: '80vh' }}>
-        <Content
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            alignItems: 'center',
-            padding: '48px',
-          }}
-        >
-          <Title level={3} style={{ marginBottom: '16px' }}>
-            加载课程失败
-          </Title>
-          <Text type="danger">{coursesError.message || '未知错误'}</Text>
-          <Button
-            type="primary"
-            onClick={refreshCourses}
-            style={{ marginTop: '24px' }}
-          >
-            重试
-          </Button>
-        </Content>
-      </Layout>
-    );
-  }
-
   const displayedCourses = courses || [];
 
   const filteredCourses = displayedCourses.filter((course) =>
     course.name.toLowerCase().includes(searchText.toLowerCase()),
   );
-
   return (
-    <Layout style={{ background: '#fff' }}>
-      <Content style={{ padding: '0 48px' }}>
-        <style>
-          {`
+    <>
+      <Spin spinning={loadingCourses} tip="加载中...">
+        <Layout className="bg-#fff container mx-auto">
+          <Content className="p-12 pt-0">
+            <style>
+              {`
             .course-grid-container {
               display: grid;
               gap: 24px;
@@ -235,188 +191,196 @@ function ManageCoursesComponent() {
               }
             }
           `}
-        </style>
-        <Row
-          justify="space-between"
-          align="middle"
-          style={{ marginTop: '24px', marginBottom: '0px' }}
-        >
-          <Col>
-            <Title
-              level={2}
-              style={{
-                color: '#1E293B',
-                margin: 0,
-                fontSize: '28px',
-                lineHeight: '42px',
-              }}
+            </style>
+            <Row
+              justify="space-between"
+              align="middle"
+              style={{ marginTop: '24px', marginBottom: '0px' }}
             >
-              课程管理
-            </Title>
-          </Col>
-          <Col>
-            <Input
-              style={{ width: '256px', borderRadius: '6px' }}
-              placeholder="搜索课程..."
-              prefix={<SearchOutlined style={{ color: '#64748B' }} />}
-              onChange={handleSearch}
-              value={searchText}
-            />
-          </Col>
-        </Row>
-
-        <Row style={{ marginTop: '0px', marginBottom: '24px' }}>
-          <Col>
-            <Text
-              style={{ color: '#64748B', fontSize: '16px', lineHeight: '24px' }}
-            >
-              管理您的所有课程，添加新课程或编辑现有课程
-            </Text>
-          </Col>
-        </Row>
-
-        <div className="course-grid-container">
-          <Card
-            hoverable
-            style={{
-              borderRadius: '8px',
-              border: '2px dashed #E2E8F0',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              textAlign: 'center',
-              height: '100%',
-              cursor:
-                loadingCreate || loadingUpdate || loadingDelete
-                  ? 'not-allowed'
-                  : 'pointer',
-            }}
-            styles={{
-              body: {
-                padding: '24px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '100%',
-              },
-            }}
-            onClick={() => {
-              if (loadingCreate || loadingUpdate || loadingDelete) return;
-              handleOpenAddCourseModal();
-            }}
-          >
-            <div
-              style={{
-                background: '#F1F5F9',
-                borderRadius: '9999px',
-                padding: '12px',
-                display: 'inline-flex',
-                marginBottom: '12px',
-              }}
-            >
-              <PlusOutlined style={{ fontSize: '24px', color: '#64748B' }} />
-            </div>
-            <Text
-              style={{
-                color: '#64748B',
-                fontSize: '16px',
-                lineHeight: '24px',
-              }}
-            >
-              添加新课程
-            </Text>
-          </Card>
-
-          {filteredCourses.map((course) => (
-            <Card
-              key={course.id}
-              style={{
-                borderRadius: '8px',
-                overflow: 'hidden',
-                boxShadow: '0px 1px 2px 0px rgba(0, 0, 0, 0.05)',
-                height: '100%',
-              }}
-              styles={{
-                body: {
-                  padding: 0,
-                },
-              }}
-            >
-              <div style={{ height: '8px', background: course.color }} />
-              <div style={{ padding: '24px' }}>
+              <Col>
                 <Title
-                  level={4}
+                  level={2}
                   style={{
                     color: '#1E293B',
-                    fontSize: '18px',
-                    lineHeight: '28px',
-                    marginBottom: '8px',
+                    margin: 0,
+                    fontSize: '28px',
+                    lineHeight: '42px',
                   }}
                 >
-                  {course.name}
+                  课程管理
                 </Title>
+              </Col>
+              <Col>
+                <Input
+                  style={{ width: '256px', borderRadius: '6px' }}
+                  placeholder="搜索课程..."
+                  prefix={<SearchOutlined style={{ color: '#64748B' }} />}
+                  onChange={handleSearch}
+                  value={searchText}
+                />
+              </Col>
+            </Row>
+
+            <Row style={{ marginTop: '0px', marginBottom: '24px' }}>
+              <Col>
                 <Text
                   style={{
                     color: '#64748B',
-                    lineHeight: '20px',
-                    display: 'block',
-                    minHeight: '40px',
+                    fontSize: '16px',
+                    lineHeight: '24px',
                   }}
                 >
-                  {course.description}
+                  管理您的所有课程，添加新课程或编辑现有课程
                 </Text>
-                <Space
-                  style={{
-                    marginTop: '16px',
+              </Col>
+            </Row>
+
+            <div className="course-grid-container">
+              <Card
+                hoverable
+                style={{
+                  borderRadius: '8px',
+                  border: '2px dashed #E2E8F0',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  height: '100%',
+                  cursor:
+                    loadingCreate || loadingUpdate || loadingDelete
+                      ? 'not-allowed'
+                      : 'pointer',
+                }}
+                styles={{
+                  body: {
+                    padding: '24px',
                     display: 'flex',
-                    justifyContent: 'flex-end',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '100%',
+                  },
+                }}
+                onClick={() => {
+                  if (loadingCreate || loadingUpdate || loadingDelete) return;
+                  handleOpenAddCourseModal();
+                }}
+              >
+                <div
+                  style={{
+                    background: '#F1F5F9',
+                    borderRadius: '9999px',
+                    padding: '12px',
+                    display: 'inline-flex',
+                    marginBottom: '12px',
                   }}
                 >
-                  <Button
-                    icon={<EditOutlined />}
-                    onClick={() => handleOpenEditCourseModal(course)}
-                    aria-label="编辑课程"
+                  <PlusOutlined
+                    style={{ fontSize: '24px', color: '#64748B' }}
                   />
-                  <Button
-                    icon={<DeleteOutlined />}
-                    danger
-                    onClick={() => showDeleteModal(course)}
-                    aria-label="删除课程"
-                  />
-                </Space>
-              </div>
-            </Card>
-          ))}
-        </div>
-      </Content>
+                </div>
+                <Text
+                  style={{
+                    color: '#64748B',
+                    fontSize: '16px',
+                    lineHeight: '24px',
+                  }}
+                >
+                  添加新课程
+                </Text>
+              </Card>
 
-      <AntModal
-        title="确认删除"
-        open={isDeleteModalVisible}
-        onOk={handleDeleteConfirm}
-        onCancel={handleDeleteCancel}
-        okText="删除"
-        cancelText="取消"
-        okButtonProps={{ danger: true, loading: loadingDelete }}
-        confirmLoading={loadingDelete}
-      >
-        <p>
-          您确定要删除课程 &ldquo;{courseToDelete?.name}&rdquo;
-          吗？此操作无法撤销。
-        </p>
-      </AntModal>
+              {filteredCourses.map((course) => (
+                <Card
+                  key={course.id}
+                  style={{
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    boxShadow: '0px 1px 2px 0px rgba(0, 0, 0, 0.05)',
+                    height: '100%',
+                  }}
+                  styles={{
+                    body: {
+                      padding: 0,
+                    },
+                  }}
+                >
+                  <div style={{ height: '8px', background: course.color }} />
+                  <div style={{ padding: '24px' }}>
+                    <Title
+                      level={4}
+                      style={{
+                        color: '#1E293B',
+                        fontSize: '18px',
+                        lineHeight: '28px',
+                        marginBottom: '8px',
+                      }}
+                    >
+                      {course.name}
+                    </Title>
+                    <Text
+                      style={{
+                        color: '#64748B',
+                        lineHeight: '20px',
+                        display: 'block',
+                        minHeight: '40px',
+                      }}
+                    >
+                      {course.note}
+                    </Text>
+                    <Space
+                      style={{
+                        marginTop: '16px',
+                        display: 'flex',
+                        justifyContent: 'flex-end',
+                      }}
+                    >
+                      <Button
+                        icon={<EditOutlined />}
+                        onClick={() => handleOpenEditCourseModal(course)}
+                        aria-label="编辑课程"
+                      />
+                      <Button
+                        icon={<DeleteOutlined />}
+                        danger
+                        onClick={() => showDeleteModal(course)}
+                        aria-label="删除课程"
+                      />
+                    </Space>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </Content>
 
-      <CourseFormModal
-        open={isCourseModalOpen}
-        onClose={() => {
-          setIsCourseModalOpen(false);
-          setEditingCourseData(null);
-        }}
-        onSubmit={handleCourseFormSubmit}
-        initialData={editingCourseData}
-      />
-    </Layout>
+          <AntModal
+            title="确认删除"
+            open={isDeleteModalVisible}
+            onOk={handleDeleteConfirm}
+            onCancel={handleDeleteCancel}
+            okText="删除"
+            cancelText="取消"
+            okButtonProps={{ danger: true, loading: loadingDelete }}
+            confirmLoading={loadingDelete}
+          >
+            <p>
+              您确定要删除课程 &ldquo;{courseToDelete?.name}&rdquo;
+              吗？此操作无法撤销。
+            </p>
+          </AntModal>
+
+          <CourseFormModal
+            open={isCourseModalOpen}
+            onClose={() => {
+              setIsCourseModalOpen(false);
+              setEditingCourseData(null);
+            }}
+            onSubmit={handleCourseFormSubmit}
+            initialData={editingCourseData}
+          />
+        </Layout>
+      </Spin>
+    </>
   );
 }

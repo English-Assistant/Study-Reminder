@@ -7,13 +7,29 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { StudyRecord, Prisma } from '@prisma/client';
+import {
+  StudyRecord,
+  Prisma,
+  ReviewRule,
+  IntervalUnit,
+  ReviewMode,
+} from '@prisma/client';
 import { CreateStudyRecordDto } from './dto/create-study-record.dto';
 import { UpdateStudyRecordDto } from './dto/update-study-record.dto';
 import * as dayjs from 'dayjs';
 import * as utc from 'dayjs/plugin/utc';
+import * as customParseFormat from 'dayjs/plugin/customParseFormat';
+import * as isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import * as isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import {
+  StudyRecordWithReviewsDto,
+  UpcomingReviewInRecordDto,
+} from './dto/study-record-with-reviews.dto';
 
 dayjs.extend(utc);
+dayjs.extend(customParseFormat);
+dayjs.extend(isSameOrAfter);
+dayjs.extend(isSameOrBefore);
 
 @Injectable()
 export class StudyRecordsService {
@@ -269,5 +285,245 @@ export class StudyRecordsService {
     }
 
     return consecutiveDays;
+  }
+
+  private calculateNextReviewTime(
+    studiedAt: Date,
+    rule: ReviewRule,
+  ): dayjs.Dayjs | null {
+    const baseTime = dayjs(studiedAt).utc().second(0).millisecond(0);
+    const expectedTime = this.addInterval(baseTime, rule.value, rule.unit);
+
+    if (rule.mode === ReviewMode.ONCE) {
+      return expectedTime;
+    }
+
+    if (rule.mode === ReviewMode.RECURRING) {
+      return expectedTime;
+    }
+    return null;
+  }
+
+  private addInterval(
+    date: dayjs.Dayjs,
+    value: number,
+    unit: IntervalUnit,
+  ): dayjs.Dayjs {
+    let dayjsUnit: dayjs.ManipulateType;
+    switch (unit) {
+      case IntervalUnit.MINUTE:
+        dayjsUnit = 'minute';
+        break;
+      case IntervalUnit.HOUR:
+        dayjsUnit = 'hour';
+        break;
+      case IntervalUnit.DAY:
+        dayjsUnit = 'day';
+        break;
+      default:
+        this.logger.warn(`Unsupported IntervalUnit: ${String(unit)}`);
+        return date;
+    }
+    return date.add(value, dayjsUnit);
+  }
+
+  private getRuleDescription(rule: ReviewRule): string {
+    const unitMap = {
+      [IntervalUnit.MINUTE]: '分钟',
+      [IntervalUnit.HOUR]: '小时',
+      [IntervalUnit.DAY]: '天',
+    };
+    const modeMap = {
+      [ReviewMode.ONCE]: '一次性',
+      [ReviewMode.RECURRING]: '周期性',
+    };
+    return `${rule.value} ${unitMap[rule.unit]}后 (${modeMap[rule.mode]}) - ${rule.note || '无备注'}`;
+  }
+
+  async getStudyRecordsAndReviewsByMonth(
+    userId: string,
+    year: number,
+    month: number, // 1-indexed
+  ): Promise<StudyRecordWithReviewsDto[]> {
+    this.logger.log(
+      `Fetching study records and reviews for user ${userId} for ${year}-${month}`,
+    );
+
+    const monthStart = dayjs.utc(`${year}-${month}-01`).startOf('month');
+    const monthEnd = monthStart.endOf('month');
+
+    const studyRecordSelectScope = {
+      id: true,
+      userId: true,
+      courseId: true,
+      textTitle: true,
+      note: true,
+      studiedAt: true,
+      createdAt: true,
+      course: {
+        select: {
+          id: true,
+          name: true,
+          color: true,
+          note: true,
+        },
+      },
+    };
+
+    const recordsInMonthModels = await this.prisma.studyRecord.findMany({
+      where: {
+        userId,
+        createdAt: {
+          gte: monthStart.toDate(),
+          lte: monthEnd.toDate(),
+        },
+      },
+      select: studyRecordSelectScope,
+      orderBy: {
+        studiedAt: 'asc',
+      },
+    });
+
+    const reviewRules = await this.prisma.reviewRule.findMany({
+      where: { userId },
+    });
+
+    const mapToDto = (record: {
+      id: string;
+      userId: string;
+      courseId: string;
+      textTitle: string;
+      note: string | null;
+      studiedAt: Date;
+      createdAt: Date;
+      course: {
+        id: string;
+        name: string;
+        color: string | null;
+        note: string | null;
+      } | null;
+    }): StudyRecordWithReviewsDto => ({
+      id: record.id,
+      userId: record.userId,
+      courseId: record.courseId,
+      textTitle: record.textTitle,
+      note: record.note,
+      studiedAt: record.studiedAt,
+      createdAt: record.createdAt,
+      course: record.course
+        ? {
+            id: record.course.id,
+            name: record.course.name,
+            color: record.course.color,
+            note: record.course.note,
+          }
+        : null,
+      upcomingReviewsInMonth: [],
+    });
+
+    if (!reviewRules.length) {
+      return recordsInMonthModels.map(mapToDto);
+    }
+
+    const allStudyRecordsWithCourse = await this.prisma.studyRecord.findMany({
+      where: { userId },
+      select: studyRecordSelectScope,
+    });
+
+    const recordsInMonthMap = new Map<string, StudyRecordWithReviewsDto>();
+    for (const record of recordsInMonthModels) {
+      recordsInMonthMap.set(record.id, mapToDto(record));
+    }
+
+    for (const record of allStudyRecordsWithCourse) {
+      if (!record.course) {
+        this.logger.warn(
+          `Study record ${record.id} (title: ${record.textTitle}) for user ${userId} is missing course data. Skipping for review calculation.`,
+        );
+        continue;
+      }
+
+      for (const rule of reviewRules) {
+        const baseTime = dayjs(record.studiedAt).utc().second(0).millisecond(0);
+        const nextReviewTime = this.addInterval(
+          baseTime,
+          rule.value,
+          rule.unit,
+        );
+
+        if (rule.mode === ReviewMode.ONCE) {
+          if (
+            nextReviewTime.isSameOrAfter(monthStart) &&
+            nextReviewTime.isSameOrBefore(monthEnd)
+          ) {
+            const reviewItem: UpcomingReviewInRecordDto = {
+              studyRecordId: record.id,
+              textTitle: record.textTitle,
+              courseId: record.courseId,
+              courseName: record.course.name,
+              expectedReviewAt: nextReviewTime.toDate(),
+              ruleId: rule.id,
+              ruleDescription: this.getRuleDescription(rule),
+            };
+            if (recordsInMonthMap.has(record.id)) {
+              recordsInMonthMap
+                .get(record.id)
+                ?.upcomingReviewsInMonth.push(reviewItem);
+            }
+          }
+        } else if (rule.mode === ReviewMode.RECURRING) {
+          let tempNextReviewTime = nextReviewTime;
+          while (tempNextReviewTime.isSameOrBefore(monthEnd)) {
+            if (tempNextReviewTime.isSameOrAfter(monthStart)) {
+              if (tempNextReviewTime.isSameOrAfter(baseTime)) {
+                const reviewItem: UpcomingReviewInRecordDto = {
+                  studyRecordId: record.id,
+                  textTitle: record.textTitle,
+                  courseId: record.courseId,
+                  courseName: record.course.name,
+                  expectedReviewAt: tempNextReviewTime.toDate(),
+                  ruleId: rule.id,
+                  ruleDescription: this.getRuleDescription(rule),
+                };
+                if (recordsInMonthMap.has(record.id)) {
+                  recordsInMonthMap
+                    .get(record.id)
+                    ?.upcomingReviewsInMonth.push(reviewItem);
+                }
+              }
+            }
+            const calculatedNext = this.addInterval(
+              tempNextReviewTime,
+              rule.value,
+              rule.unit,
+            );
+            if (calculatedNext.isSame(tempNextReviewTime)) {
+              this.logger.warn(
+                `Potential infinite loop or no progression detected for record ${record.id} and rule ${rule.id} at time ${tempNextReviewTime.toISOString()}. Breaking.`,
+              );
+              break;
+            }
+            tempNextReviewTime = calculatedNext;
+          }
+        }
+      }
+    }
+
+    const finalResults = Array.from(recordsInMonthMap.values()).map(
+      (record) => {
+        record.upcomingReviewsInMonth.sort(
+          (a, b) =>
+            dayjs(a.expectedReviewAt).valueOf() -
+            dayjs(b.expectedReviewAt).valueOf(),
+        );
+        return record;
+      },
+    );
+
+    finalResults.sort(
+      (a, b) => dayjs(a.studiedAt).valueOf() - dayjs(b.studiedAt).valueOf(),
+    );
+
+    return finalResults;
   }
 }

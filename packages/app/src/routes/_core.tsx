@@ -49,12 +49,12 @@ const menuItems: MenuItem[] = [
   ),
   getItem(
     <RouterLink to="/study-records">添加复习计划</RouterLink>,
-    '/add-course',
+    '/study-records',
     <SidebarCalendarIcon />,
   ),
   getItem(
     <RouterLink to="/courses">课程管理</RouterLink>,
-    '/manage-courses',
+    '/courses',
     <SidebarSettingsIcon />,
   ),
   getItem(

@@ -51,7 +51,7 @@ const CourseFormModal: React.FC<CourseFormModalProps> = ({
       if (initialData) {
         form.setFieldsValue({
           name: initialData.name,
-          description: initialData.description || undefined,
+          note: initialData.note || undefined,
           color: initialData.color,
         });
         setColorValue(initialData.color);
@@ -61,7 +61,7 @@ const CourseFormModal: React.FC<CourseFormModalProps> = ({
         const randomColor = generateRandomHexColor(); // Generate a new random color
         form.setFieldsValue({
           name: '',
-          description: '',
+          note: '',
           color: randomColor,
         });
         setColorValue(randomColor);
@@ -119,7 +119,7 @@ const CourseFormModal: React.FC<CourseFormModalProps> = ({
         name="course_form"
         initialValues={{
           name: initialData?.name || '',
-          description: initialData?.description || '',
+          note: initialData?.note || '',
           color: initialData?.color || colorValue, // Uses the stateful colorValue (random for new)
         }}
       >
@@ -131,8 +131,8 @@ const CourseFormModal: React.FC<CourseFormModalProps> = ({
           <Input placeholder="请输入课程名称" />
         </Form.Item>
 
-        <Form.Item<Course> name="description" label={<span>课程描述</span>}>
-          <Input.TextArea rows={4} placeholder="请输入课程描述" />
+        <Form.Item<Course> name="note" label={<span>课程备注</span>}>
+          <Input.TextArea rows={4} placeholder="请输入课程备注" />
         </Form.Item>
 
         <Form.Item<Course>

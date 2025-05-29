@@ -3,18 +3,36 @@ import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 // It's good practice to ensure locale is set if relying on week conventions
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
-import type { ManualReviewEntryDto } from '@y/interface/manual-review-entries-module/dto/manual-review-entry.dto.ts';
+// import type { ManualReviewEntryDto } from '@y/interface/manual-review-entries-module/dto/manual-review-entry.dto.ts'; // 移除
 import { Button } from 'antd';
+import type {
+  StudyRecordWithReviewsDto,
+  UpcomingReviewInRecordDto,
+} from '@y/interface/study-records/dto/study-record-with-reviews.dto.ts'; // 导入所需类型
+
+// 从父组件导入 CalendarDisplayEvent 类型，或者在此重新定义
+// 假设父组件会导出它，或者我们在这里定义一个匹配的本地类型
+interface CalendarDisplayEvent {
+  // 本地定义以匹配父组件中的结构
+  id: string;
+  date: Dayjs;
+  type: 'study_record' | 'review_due';
+  title: string;
+  description?: string;
+  color?: string | null;
+  source: StudyRecordWithReviewsDto | UpcomingReviewInRecordDto; // <--- 修改此处的类型
+  courseName?: string;
+}
 
 interface CustomCalendarProps {
   currentMonth: Dayjs;
   onMonthChange: (newMonth: Dayjs) => void;
   renderDayEntries: (
     date: Dayjs,
-    entriesForDate: ManualReviewEntryDto[],
+    entriesForDate: CalendarDisplayEvent[], // 修改类型
   ) => React.ReactNode;
   onDateCellClick: (date: Dayjs) => void;
-  allEntries: ManualReviewEntryDto[];
+  allEntries: CalendarDisplayEvent[]; // 修改类型
 
   className?: string;
 }
@@ -75,9 +93,9 @@ export function CustomCalendar({
     onMonthChange(currentMonth.add(1, 'month'));
   };
 
-  const getEntriesForDate = (date: Dayjs): ManualReviewEntryDto[] => {
-    return allEntries.filter((entry) =>
-      dayjs(entry.reviewDate).isSame(date, 'day'),
+  const getEntriesForDate = (date: Dayjs): CalendarDisplayEvent[] => {
+    return allEntries.filter(
+      (entry) => dayjs(entry.date).isSame(date, 'day'), // 使用 entry.date
     );
   };
 

@@ -20,7 +20,10 @@ function AboutComponent() {
   ];
 
   return (
-    <div style={{ padding: '20px 40px', maxWidth: '1000px', margin: '0 auto' }}>
+    <div
+      style={{ padding: '20px 40px', margin: '0 auto' }}
+      className="bg-#fff rounded-xl container"
+    >
       <Title level={2} style={{ textAlign: 'center', marginBottom: '40px' }}>
         关于 Study Reminder
       </Title>

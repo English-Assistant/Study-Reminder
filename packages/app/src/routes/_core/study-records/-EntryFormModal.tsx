@@ -10,18 +10,18 @@ import {
   App,
   Spin,
 } from 'antd';
-import { Dayjs } from 'dayjs';
+import type { Dayjs } from 'dayjs';
 import type { FormInstance } from 'antd';
 import { useRequest } from 'ahooks';
 import {
-  createManualReviewEntry,
-  updateManualReviewEntry,
-} from '@/apis/manual-review-entries';
-import type { CreateManualReviewEntryDto } from '@y/interface/manual-review-entries-module/dto/create-manual-review-entry.dto.ts';
-import type { UpdateManualReviewEntryDto } from '@y/interface/manual-review-entries-module/dto/update-manual-review-entry.dto.ts';
-import { getAllCourses } from '@/apis/courses';
+  createStudyRecordApi,
+  updateStudyRecordApi,
+} from '@/apis/study-records';
+import type { CreateStudyRecordDto } from '@y/interface/study-records/dto/create-study-record.dto.ts';
+import type { UpdateStudyRecordDto } from '@y/interface/study-records/dto/update-study-record.dto.ts';
+import type { StudyRecordWithReviewsDto } from '@y/interface/study-records/dto/study-record-with-reviews.dto.ts';
+import { getAllCoursesApi } from '@/apis/courses';
 import type { Course as PrismaCourse } from '@y/interface/common/prisma.type.ts';
-import type { ManualReviewEntryDto } from '@y/interface/manual-review-entries-module/dto/manual-review-entry.dto.ts';
 import dayjs from 'dayjs';
 import { useEffect } from 'react';
 
@@ -38,7 +38,7 @@ interface EntryFormModalProps {
   isVisible: boolean;
   onSuccess: () => void;
   onCancel: () => void;
-  editingItem: ManualReviewEntryDto | null;
+  editingItem: StudyRecordWithReviewsDto | null;
   selectedDate: Dayjs;
   form: FormInstance<EntryFormValues>;
 }
@@ -57,38 +57,38 @@ export function EntryFormModal({
   const { data: coursesData, loading: loadingCourses } = useRequest<
     PrismaCourse[],
     []
-  >(getAllCourses, {
+  >(getAllCoursesApi, {
     onError: (err) => {
-      message.error(err.message || '加载课程列表失败');
+      message.error((err as Error).message || '加载课程列表失败');
     },
   });
 
   const { run: runCreateEntry, loading: loadingCreate } = useRequest(
-    createManualReviewEntry,
+    createStudyRecordApi,
     {
       manual: true,
       onSuccess: () => {
-        message.success('打卡成功，已加入复习计划!');
+        message.success('学习记录已添加!');
         form.resetFields();
         onSuccess();
       },
       onError: (error) => {
-        message.error(error.message || '添加打卡记录失败');
+        message.error((error as Error).message || '添加学习记录失败');
       },
     },
   );
 
   const { run: runUpdateEntry, loading: loadingUpdate } = useRequest(
-    updateManualReviewEntry,
+    (id: string, data: UpdateStudyRecordDto) => updateStudyRecordApi(id, data),
     {
       manual: true,
       onSuccess: () => {
-        message.success('打卡记录已更新!');
+        message.success('学习记录已更新!');
         form.resetFields();
         onSuccess();
       },
       onError: (error) => {
-        message.error(error.message || '更新打卡记录失败');
+        message.error((error as Error).message || '更新学习记录失败');
       },
     },
   );
@@ -97,40 +97,52 @@ export function EntryFormModal({
     if (isVisible) {
       if (isEditMode && editingItem) {
         form.setFieldsValue({
-          title: editingItem.title,
-          description: editingItem.description,
+          title: editingItem.textTitle,
+          description: editingItem.note || undefined,
           courseId: editingItem.courseId,
-          startTime: editingItem.reviewTime
-            ? dayjs(editingItem.reviewTime, 'HH:mm')
+          startTime: editingItem.studiedAt
+            ? dayjs(editingItem.studiedAt)
             : undefined,
         });
+      } else {
+        // 创建模式下，可以预设 selectedDate 的时间为当前时间，或留空由用户选择
+        // form.setFieldsValue({ startTime: dayjs().hour(selectedDate.hour()).minute(selectedDate.minute()) });
       }
     }
-  }, [editingItem, form, isVisible, isEditMode]);
+  }, [editingItem, form, isVisible, isEditMode /*, selectedDate */]);
 
   const handleOk = async () => {
     const values = await form.validateFields();
 
+    let studiedAtDate: Dayjs;
+    if (values.startTime) {
+      const baseDate =
+        isEditMode && editingItem ? dayjs(editingItem.studiedAt) : selectedDate;
+      studiedAtDate = baseDate
+        .hour(values.startTime.hour())
+        .minute(values.startTime.minute())
+        .second(0)
+        .millisecond(0);
+    } else {
+      const baseDate =
+        isEditMode && editingItem ? dayjs(editingItem.studiedAt) : selectedDate;
+      studiedAtDate = baseDate.startOf('day');
+    }
+
     if (isEditMode && editingItem) {
-      const payload: UpdateManualReviewEntryDto = {
-        title: values.title,
-        description: values.description,
+      const payload: UpdateStudyRecordDto = {
+        textTitle: values.title,
+        note: values.description,
         courseId: values.courseId,
-        reviewDate: editingItem.reviewDate,
-        reviewTime: values.startTime
-          ? values.startTime.format('HH:mm')
-          : undefined,
+        studiedAt: studiedAtDate.toISOString(),
       };
       runUpdateEntry(editingItem.id, payload);
     } else {
-      const payload: CreateManualReviewEntryDto = {
-        title: values.title,
-        description: values.description,
+      const payload: CreateStudyRecordDto = {
+        textTitle: values.title,
+        note: values.description,
         courseId: values.courseId,
-        reviewDate: selectedDate.format('YYYY-MM-DD'),
-        reviewTime: values.startTime
-          ? values.startTime.format('HH:mm')
-          : undefined,
+        studiedAt: studiedAtDate.toISOString(),
       };
       runCreateEntry(payload);
     }
@@ -140,8 +152,8 @@ export function EntryFormModal({
     <Modal
       title={
         isEditMode
-          ? `编辑打卡记录 - ${editingItem?.title || ''}`
-          : `为 ${selectedDate.format('YYYY-MM-DD')} 添加打卡记录`
+          ? `编辑学习记录 - ${editingItem?.textTitle || ''}`
+          : `为 ${selectedDate.format('YYYY-MM-DD')} 添加学习记录`
       }
       open={isVisible}
       onOk={handleOk}
@@ -154,15 +166,12 @@ export function EntryFormModal({
       <Form
         form={form}
         layout="vertical"
-        name={isEditMode ? 'edit_manual_entry_form' : 'add_manual_entry_form'}
-        initialValues={{
-          startTime: dayjs(),
-        }}
+        name={isEditMode ? 'edit_study_record_form' : 'add_study_record_form'}
       >
         <Form.Item
           name="title"
-          label="打卡标题"
-          rules={[{ required: true, message: '请输入打卡标题!' }]}
+          label="标题"
+          rules={[{ required: true, message: '请输入标题!' }]}
         >
           <Input placeholder="例如：完成数学第一章练习" />
         </Form.Item>
@@ -173,7 +182,7 @@ export function EntryFormModal({
           rules={[{ required: true, message: '请选择一个课程!' }]}
         >
           <Select
-            placeholder="请选择打卡的课程"
+            placeholder="请选择课程"
             loading={loadingCourses}
             showSearch
             optionFilterProp="label"
@@ -198,13 +207,13 @@ export function EntryFormModal({
 
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item name="startTime" label="打卡时间 (可选)">
+            <Form.Item name="startTime" label="学习时间 (可选)">
               <DatePicker.TimePicker format="HH:mm" style={{ width: '100%' }} />
             </Form.Item>
           </Col>
         </Row>
 
-        <Form.Item name="description" label="详细描述 (可选)">
+        <Form.Item name="description" label="笔记 (可选)">
           <Input.TextArea
             rows={3}
             placeholder="例如：重点掌握xx概念，完成xx练习题"

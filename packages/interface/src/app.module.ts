@@ -23,6 +23,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 // import { UserPreferencesModule } from './user-preferences/user-preferences.module'; // REMOVED
 import { ScheduleModule } from '@nestjs/schedule';
 import { UpcomingReviewsModule } from './upcoming-reviews/upcoming-reviews.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { UpcomingReviewsModule } from './upcoming-reviews/upcoming-reviews.modul
     // ManualReviewEntriesModule, // REMOVED
     NotificationsModule,
     UpcomingReviewsModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

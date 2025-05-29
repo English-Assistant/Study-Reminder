@@ -17,8 +17,8 @@ import { Route as IndexImport } from './routes/index'
 import { Route as CoreSetUpImport } from './routes/_core/set-up'
 import { Route as CoreDashboardImport } from './routes/_core/dashboard'
 import { Route as CoreAboutImport } from './routes/_core/about'
-import { Route as CoreManageCoursesIndexImport } from './routes/_core/manage-courses/index'
-import { Route as CoreAddCourseIndexImport } from './routes/_core/add-course/index'
+import { Route as CoreStudyRecordsIndexImport } from './routes/_core/study-records/index'
+import { Route as CoreCoursesIndexImport } from './routes/_core/courses/index'
 
 // Create/Update Routes
 
@@ -57,15 +57,15 @@ const CoreAboutRoute = CoreAboutImport.update({
   getParentRoute: () => CoreRoute,
 } as any)
 
-const CoreManageCoursesIndexRoute = CoreManageCoursesIndexImport.update({
-  id: '/manage-courses/',
-  path: '/manage-courses/',
+const CoreStudyRecordsIndexRoute = CoreStudyRecordsIndexImport.update({
+  id: '/study-records/',
+  path: '/study-records/',
   getParentRoute: () => CoreRoute,
 } as any)
 
-const CoreAddCourseIndexRoute = CoreAddCourseIndexImport.update({
-  id: '/add-course/',
-  path: '/add-course/',
+const CoreCoursesIndexRoute = CoreCoursesIndexImport.update({
+  id: '/courses/',
+  path: '/courses/',
   getParentRoute: () => CoreRoute,
 } as any)
 
@@ -115,18 +115,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CoreSetUpImport
       parentRoute: typeof CoreImport
     }
-    '/_core/add-course/': {
-      id: '/_core/add-course/'
-      path: '/add-course'
-      fullPath: '/add-course'
-      preLoaderRoute: typeof CoreAddCourseIndexImport
+    '/_core/courses/': {
+      id: '/_core/courses/'
+      path: '/courses'
+      fullPath: '/courses'
+      preLoaderRoute: typeof CoreCoursesIndexImport
       parentRoute: typeof CoreImport
     }
-    '/_core/manage-courses/': {
-      id: '/_core/manage-courses/'
-      path: '/manage-courses'
-      fullPath: '/manage-courses'
-      preLoaderRoute: typeof CoreManageCoursesIndexImport
+    '/_core/study-records/': {
+      id: '/_core/study-records/'
+      path: '/study-records'
+      fullPath: '/study-records'
+      preLoaderRoute: typeof CoreStudyRecordsIndexImport
       parentRoute: typeof CoreImport
     }
   }
@@ -138,16 +138,16 @@ interface CoreRouteChildren {
   CoreAboutRoute: typeof CoreAboutRoute
   CoreDashboardRoute: typeof CoreDashboardRoute
   CoreSetUpRoute: typeof CoreSetUpRoute
-  CoreAddCourseIndexRoute: typeof CoreAddCourseIndexRoute
-  CoreManageCoursesIndexRoute: typeof CoreManageCoursesIndexRoute
+  CoreCoursesIndexRoute: typeof CoreCoursesIndexRoute
+  CoreStudyRecordsIndexRoute: typeof CoreStudyRecordsIndexRoute
 }
 
 const CoreRouteChildren: CoreRouteChildren = {
   CoreAboutRoute: CoreAboutRoute,
   CoreDashboardRoute: CoreDashboardRoute,
   CoreSetUpRoute: CoreSetUpRoute,
-  CoreAddCourseIndexRoute: CoreAddCourseIndexRoute,
-  CoreManageCoursesIndexRoute: CoreManageCoursesIndexRoute,
+  CoreCoursesIndexRoute: CoreCoursesIndexRoute,
+  CoreStudyRecordsIndexRoute: CoreStudyRecordsIndexRoute,
 }
 
 const CoreRouteWithChildren = CoreRoute._addFileChildren(CoreRouteChildren)
@@ -159,8 +159,8 @@ export interface FileRoutesByFullPath {
   '/about': typeof CoreAboutRoute
   '/dashboard': typeof CoreDashboardRoute
   '/set-up': typeof CoreSetUpRoute
-  '/add-course': typeof CoreAddCourseIndexRoute
-  '/manage-courses': typeof CoreManageCoursesIndexRoute
+  '/courses': typeof CoreCoursesIndexRoute
+  '/study-records': typeof CoreStudyRecordsIndexRoute
 }
 
 export interface FileRoutesByTo {
@@ -170,8 +170,8 @@ export interface FileRoutesByTo {
   '/about': typeof CoreAboutRoute
   '/dashboard': typeof CoreDashboardRoute
   '/set-up': typeof CoreSetUpRoute
-  '/add-course': typeof CoreAddCourseIndexRoute
-  '/manage-courses': typeof CoreManageCoursesIndexRoute
+  '/courses': typeof CoreCoursesIndexRoute
+  '/study-records': typeof CoreStudyRecordsIndexRoute
 }
 
 export interface FileRoutesById {
@@ -182,8 +182,8 @@ export interface FileRoutesById {
   '/_core/about': typeof CoreAboutRoute
   '/_core/dashboard': typeof CoreDashboardRoute
   '/_core/set-up': typeof CoreSetUpRoute
-  '/_core/add-course/': typeof CoreAddCourseIndexRoute
-  '/_core/manage-courses/': typeof CoreManageCoursesIndexRoute
+  '/_core/courses/': typeof CoreCoursesIndexRoute
+  '/_core/study-records/': typeof CoreStudyRecordsIndexRoute
 }
 
 export interface FileRouteTypes {
@@ -195,8 +195,8 @@ export interface FileRouteTypes {
     | '/about'
     | '/dashboard'
     | '/set-up'
-    | '/add-course'
-    | '/manage-courses'
+    | '/courses'
+    | '/study-records'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -205,8 +205,8 @@ export interface FileRouteTypes {
     | '/about'
     | '/dashboard'
     | '/set-up'
-    | '/add-course'
-    | '/manage-courses'
+    | '/courses'
+    | '/study-records'
   id:
     | '__root__'
     | '/'
@@ -215,8 +215,8 @@ export interface FileRouteTypes {
     | '/_core/about'
     | '/_core/dashboard'
     | '/_core/set-up'
-    | '/_core/add-course/'
-    | '/_core/manage-courses/'
+    | '/_core/courses/'
+    | '/_core/study-records/'
   fileRoutesById: FileRoutesById
 }
 
@@ -256,8 +256,8 @@ export const routeTree = rootRoute
         "/_core/about",
         "/_core/dashboard",
         "/_core/set-up",
-        "/_core/add-course/",
-        "/_core/manage-courses/"
+        "/_core/courses/",
+        "/_core/study-records/"
       ]
     },
     "/login": {
@@ -275,12 +275,12 @@ export const routeTree = rootRoute
       "filePath": "_core/set-up.tsx",
       "parent": "/_core"
     },
-    "/_core/add-course/": {
-      "filePath": "_core/add-course/index.tsx",
+    "/_core/courses/": {
+      "filePath": "_core/courses/index.tsx",
       "parent": "/_core"
     },
-    "/_core/manage-courses/": {
-      "filePath": "_core/manage-courses/index.tsx",
+    "/_core/study-records/": {
+      "filePath": "_core/study-records/index.tsx",
       "parent": "/_core"
     }
   }

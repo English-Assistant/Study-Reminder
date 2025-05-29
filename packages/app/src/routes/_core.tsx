@@ -48,12 +48,12 @@ const menuItems: MenuItem[] = [
     <SidebarDashboardIcon />,
   ),
   getItem(
-    <RouterLink to="/add-course">添加复习计划</RouterLink>,
+    <RouterLink to="/study-records">添加复习计划</RouterLink>,
     '/add-course',
     <SidebarCalendarIcon />,
   ),
   getItem(
-    <RouterLink to="/manage-courses">课程管理</RouterLink>,
+    <RouterLink to="/courses">课程管理</RouterLink>,
     '/manage-courses',
     <SidebarSettingsIcon />,
   ),
@@ -167,7 +167,7 @@ function CoreLayoutComponent() {
             style={{
               padding: 24,
               margin: 0,
-              background: colorBgContainer,
+              background: `#FAFAFA`,
               overflowY: 'auto',
               flexGrow: 1,
             }}

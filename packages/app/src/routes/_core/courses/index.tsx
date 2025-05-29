@@ -35,7 +35,7 @@ import type { Course as PrismaCourse } from '@y/interface/common/prisma.type.ts'
 const { Content } = Layout;
 const { Title, Text } = Typography;
 
-export const Route = createFileRoute('/_core/manage-courses/')({
+export const Route = createFileRoute('/_core/courses/')({
   component: ManageCoursesComponent,
 });
 

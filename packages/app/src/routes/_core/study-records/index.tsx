@@ -17,7 +17,7 @@ import { useRequest } from 'ahooks';
 import { getAllManualReviewEntries } from '@/apis/manual-review-entries';
 import type { ManualReviewEntryDto } from '@y/interface/manual-review-entries-module/dto/manual-review-entry.dto.ts';
 
-export const Route = createFileRoute('/_core/add-course/')({
+export const Route = createFileRoute('/_core/study-records/')({
   component: AddCourseComponent,
 });
 

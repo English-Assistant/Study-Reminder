@@ -1,6 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
 import {
-  Typography,
   Select,
   Switch,
   Card,
@@ -8,14 +7,9 @@ import {
   Button,
   Form,
   Space,
-  Divider,
   InputNumber,
-  Popconfirm,
   Spin,
-  Alert,
   Input,
-  Row,
-  Col,
   App,
 } from 'antd';
 import {
@@ -27,62 +21,48 @@ import {
 } from '@ant-design/icons';
 import { v4 as uuidv4 } from 'uuid';
 import { useRequest } from 'ahooks';
-import { getGlobalSettings, setGlobalSettings } from '@/apis/review-settings';
-import type { GlobalReviewSettingsDto } from '@y/interface/review-settings-module/dto/global-review-settings.dto.ts';
-import type { SetGlobalReviewRulesDto } from '@y/interface/review-settings-module/dto/set-global-review-rules.dto.ts';
-import type { ReviewRuleDto } from '@y/interface/review-settings-module/dto/review-rule.dto.ts';
-import type {
-  ReviewRuleUnit,
-  ReviewRuleRepetition,
-} from '@y/interface/common/prisma.type.js';
-import type { FC } from 'react';
-
-const { Title, Paragraph, Text } = Typography;
+import type { ReviewRuleDto } from '@y/interface/review-settings/dto/review-rule.dto.ts';
+import {
+  getUserSettingsApi,
+  updateEmailApi,
+  updateNotificationSettingsApi,
+} from '@/apis/settings';
+import type { UpdateEmailDto } from '@y/interface/settings/dto/update-email.dto.ts';
+import type { UpdateReviewNotificationSettingsDto } from '@y/interface/settings/dto/update-review-notification-settings.dto.js';
 
 export const Route = createFileRoute('/_core/set-up')({
   component: SettingsComponent,
 });
+// 时间间隔单位
+export const IntervalUnit = {
+  MINUTE: 'MINUTE', // 分钟
+  HOUR: 'HOUR', // 小时
+  DAY: 'DAY', // 天
+} as const;
+
+// 循环模式：只提醒一次或循环提醒
+export const ReviewMode = {
+  ONCE: 'ONCE', // 一次性复习
+  RECURRING: 'RECURRING', // 循环复习
+} as const;
 
 const friendlyReminderUnitOptions = [
-  { value: 'MINUTES' as ReviewRuleUnit, label: '分钟后' },
-  { value: 'HOURS' as ReviewRuleUnit, label: '小时后' },
-  { value: 'DAYS' as ReviewRuleUnit, label: '天后' },
-  { value: 'MONTHS' as ReviewRuleUnit, label: '个月后' },
+  { value: IntervalUnit.MINUTE, label: '分钟后' },
+  { value: IntervalUnit.HOUR, label: '小时后' },
+  { value: IntervalUnit.DAY, label: '天后' },
 ];
 
 const repetitionOptions = [
-  { value: 'ONCE' as ReviewRuleRepetition, label: '仅一次' },
-  { value: 'LOOP' as ReviewRuleRepetition, label: '循环' },
+  { value: ReviewMode.ONCE, label: '仅一次' },
+  { value: ReviewMode.RECURRING, label: '循环' },
 ];
 
-/*
- * 二次封装的antd组件，包含switch
- */
-const SwitchFormItem: FC<{
-  label: string;
-  [x: string]: unknown;
-}> = ({ label, ...rest }) => {
-  return (
-    <Row>
-      <Col flex={1}>
-        <Text>{label}</Text>
-      </Col>
-      <Col>
-        <Switch {...rest}></Switch>
-      </Col>
-    </Row>
-  );
-};
-
 function SettingsComponent() {
-  const [form] = Form.useForm<SetGlobalReviewRulesDto>();
+  const [form] = Form.useForm<UpdateReviewNotificationSettingsDto>();
 
   const { message } = App.useApp();
 
-  const { loading: loadingInitialSettings } = useRequest<
-    GlobalReviewSettingsDto,
-    []
-  >(getGlobalSettings, {
+  const { loading: loadingInitialSettings } = useRequest(getUserSettingsApi, {
     onSuccess: (data) => {
       form.setFieldsValue(data);
     },
@@ -91,12 +71,8 @@ function SettingsComponent() {
     },
   });
 
-  const {
-    run: saveSettings,
-    loading: savingSettings,
-    error: saveError,
-  } = useRequest<GlobalReviewSettingsDto, [SetGlobalReviewRulesDto]>(
-    setGlobalSettings,
+  const { run: saveSettings, loading: savingSettings } = useRequest(
+    updateNotificationSettingsApi,
     {
       manual: true,
       onSuccess: () => {
@@ -108,22 +84,8 @@ function SettingsComponent() {
     },
   );
 
-  const onFinish = async (values: SetGlobalReviewRulesDto) => {
-    const payload: SetGlobalReviewRulesDto = {
-      ...values,
-      rules: values.rules
-        ? values.rules.map((rule: ReviewRuleDto) => ({
-            ...rule,
-            value: Number(rule.value),
-            id:
-              rule.id && /^[0-9a-fA-F]{24}$/.test(rule.id as string)
-                ? rule.id
-                : undefined,
-          }))
-        : [],
-    };
-
-    saveSettings(payload);
+  const onFinish = async (values: UpdateReviewNotificationSettingsDto) => {
+    saveSettings(values);
   };
 
   const handleResetRules = () => {
@@ -131,301 +93,301 @@ function SettingsComponent() {
       {
         id: uuidv4(),
         value: 1,
-        unit: 'HOURS' as ReviewRuleUnit,
-        repetition: 'ONCE' as ReviewRuleRepetition,
-        description: '',
+        unit: IntervalUnit.HOUR,
+        mode: ReviewMode.ONCE,
+        note: '',
       },
       {
         id: uuidv4(),
         value: 3,
-        unit: 'HOURS' as ReviewRuleUnit,
-        repetition: 'ONCE' as ReviewRuleRepetition,
-        description: '',
+        unit: IntervalUnit.HOUR,
+        mode: ReviewMode.ONCE,
+        note: '',
       },
       {
         id: uuidv4(),
         value: 1,
-        unit: 'DAYS' as ReviewRuleUnit,
-        repetition: 'ONCE' as ReviewRuleRepetition,
-        description: '',
+        unit: IntervalUnit.DAY,
+        mode: ReviewMode.ONCE,
+        note: '',
       },
       {
         id: uuidv4(),
         value: 2,
-        unit: 'DAYS' as ReviewRuleUnit,
-        repetition: 'ONCE' as ReviewRuleRepetition,
-        description: '',
+        unit: IntervalUnit.DAY,
+        mode: ReviewMode.ONCE,
+        note: '',
       },
       {
         id: uuidv4(),
         value: 3,
-        unit: 'DAYS' as ReviewRuleUnit,
-        repetition: 'ONCE' as ReviewRuleRepetition,
-        description: '',
+        unit: IntervalUnit.DAY,
+        mode: ReviewMode.ONCE,
+        note: '',
       },
       {
         id: uuidv4(),
         value: 7,
-        unit: 'DAYS' as ReviewRuleUnit,
-        repetition: 'ONCE' as ReviewRuleRepetition,
-        description: '',
+        unit: IntervalUnit.DAY,
+        mode: ReviewMode.ONCE,
+        note: '',
       },
       {
         id: uuidv4(),
         value: 15,
-        unit: 'DAYS' as ReviewRuleUnit,
-        repetition: 'ONCE' as ReviewRuleRepetition,
-        description: '',
+        unit: IntervalUnit.DAY,
+        mode: ReviewMode.ONCE,
+        note: '',
       },
       {
         id: uuidv4(),
         value: 30,
-        unit: 'DAYS' as ReviewRuleUnit,
-        repetition: 'ONCE' as ReviewRuleRepetition,
-        description: '',
+        unit: IntervalUnit.DAY,
+        mode: ReviewMode.ONCE,
+        note: '',
       },
       {
         id: uuidv4(),
         value: 90,
-        unit: 'DAYS' as ReviewRuleUnit,
-        repetition: 'ONCE' as ReviewRuleRepetition,
-        description: '',
+        unit: IntervalUnit.DAY,
+        mode: ReviewMode.ONCE,
+        note: '',
       },
     ];
-    form.setFieldsValue({ rules: defaultRules });
+    form.setFieldsValue({ reviewRules: defaultRules });
     message.info('规则已重置为默认值，请记得点击保存。');
   };
 
-  const globalRemindersFormEnabled = Form.useWatch('enabled', form);
+  const globalRemindersFormEnabled = Form.useWatch(
+    [`notificationSettings`, `globalNotification`],
+    form,
+  );
+  const { run: runUpdateEmail, loading: loadingUpdateEmail } = useRequest(
+    updateEmailApi,
+    {
+      manual: true,
+      onError(e) {
+        message.error(e.message);
+      },
+      onSuccess() {
+        message.success(`更新邮箱成功。`);
+      },
+    },
+  );
 
   const onUpdateEmail = async () => {
-    const value = await form.validateFields(['email']);
-    console.log(value);
+    const value = (await form.validateFields(['email'])) as unknown as {
+      email: string;
+    };
+    runUpdateEmail(value);
   };
 
   return (
     <Spin spinning={loadingInitialSettings} tip="加载中...">
-      <Card title={<Title level={3}>设置</Title>}>
+      <div className="container mx-auto">
         <Form
           form={form}
           layout="vertical"
           onFinish={onFinish}
           initialValues={{
-            enabled: true,
-            emailNotifications: true,
-            appNotifications: true,
-            rules: [],
+            notificationSettings: {
+              globalNotification: true,
+              emailNotifications: true,
+              inAppNotification: true,
+            },
+            reviewRules: [],
           }}
         >
-          <Form.Item label="邮箱" layout="horizontal">
-            <Space>
+          <Card title="邮箱设置" className="mb-8">
+            <Form.Item label="邮箱">
+              <Space>
+                <Form.Item<UpdateEmailDto>
+                  noStyle
+                  name="email"
+                  rules={[
+                    { required: true, message: '请输入邮箱' },
+                    { type: 'email', message: '请输入正确的邮箱地址' },
+                  ]}
+                >
+                  <Input className="w-100" placeholder="请输入邮箱地址" />
+                </Form.Item>
+                <Button
+                  type="primary"
+                  onClick={onUpdateEmail}
+                  loading={loadingUpdateEmail}
+                >
+                  更新邮箱
+                </Button>
+              </Space>
+            </Form.Item>
+          </Card>
+          <Card title="通知管理" className="mb-8">
+            <div className="flex flex-justify-between">
+              <div>开启提醒服务</div>
               <Form.Item
-                noStyle
-                name="email"
-                rules={[
-                  { required: true, message: '请输入邮箱' },
-                  { type: 'email', message: '请输入正确的邮箱地址' },
-                ]}
+                name={['notificationSettings', 'globalNotification']}
+                valuePropName="checked"
               >
-                <Input className="w-100" placeholder="请输入邮箱地址" />
+                <Switch />
               </Form.Item>
-              <Button type="primary" onClick={onUpdateEmail}>
-                更新邮箱
-              </Button>
-            </Space>
-          </Form.Item>
-
-          <Form.Item<GlobalReviewSettingsDto>
-            name="enabled"
-            label={null}
-            valuePropName="checked"
-          >
-            <SwitchFormItem label="开启提醒服务" />
-          </Form.Item>
-
-          <Divider />
-
-          <Title level={4} style={{ marginTop: '20px' }}>
-            通知渠道
-          </Title>
-          <Paragraph type="secondary">
-            选择您希望如何接收复习提醒。仅当上方的&quot;开启提醒服务&quot;打开时生效。
-          </Paragraph>
-          <Form.Item<GlobalReviewSettingsDto>
-            name="emailNotifications"
-            label={null}
-            valuePropName="checked"
-          >
-            <SwitchFormItem label="邮件通知" />
-          </Form.Item>
-
-          <Form.Item<GlobalReviewSettingsDto>
-            name="appNotifications"
-            valuePropName="checked"
-            label={null}
-          >
-            <SwitchFormItem label="应用内通知" />
-          </Form.Item>
-
-          <Divider />
-
-          <Title level={4} style={{ marginTop: '20px' }}>
-            自定义复习规则模板
-          </Title>
-          <Paragraph type="secondary">
-            在此处定义提醒规则。仅当上方的&quot;开启提醒服务&quot;打开时生效。
-          </Paragraph>
-
-          {saveError && (
-            <Alert
-              message="保存规则时出错"
-              description={saveError.message}
-              type="error"
-              showIcon
-              closable
-              style={{ marginBottom: '16px' }}
-            />
-          )}
-
-          <Form.List name="rules">
-            {(fields, { add, remove }) => (
-              <>
-                <List
-                  itemLayout="horizontal"
-                  dataSource={fields}
-                  locale={{
-                    emptyText: globalRemindersFormEnabled
-                      ? '暂无自定义规则，请添加新的规则。'
-                      : '提醒服务已关闭',
-                  }}
-                  renderItem={(field, index: number) => {
-                    const { key, ...restField } = field;
-                    return (
-                      <List.Item
-                        key={key}
-                        style={{
-                          padding: '12px 0',
-                          borderBottom:
-                            index < fields.length - 1
-                              ? '1px solid #f0f0f0'
-                              : 'none',
-                          opacity: !globalRemindersFormEnabled ? 0.5 : 1,
-                        }}
-                        actions={[
-                          <Popconfirm
-                            key={`delete-${key}`}
-                            title="确定删除这条规则吗？"
-                            onConfirm={() => remove(field.name)}
-                            okText="确定"
-                            cancelText="取消"
-                          >
+            </div>
+            <div className="flex flex-justify-between">
+              <div>邮件通知</div>
+              <Form.Item
+                name={['notificationSettings', 'emailNotification']}
+                valuePropName="checked"
+              >
+                <Switch />
+              </Form.Item>
+            </div>
+            <div className="flex flex-justify-between">
+              <div>应用内通知</div>
+              <Form.Item
+                name={['notificationSettings', 'inAppNotification']}
+                valuePropName="checked"
+              >
+                <Switch />
+              </Form.Item>
+            </div>
+          </Card>
+          <Card title="自定义提醒规则" className="mb-8">
+            <Form.List name="reviewRules">
+              {(fields, { add, remove }) => (
+                <>
+                  <List
+                    itemLayout="horizontal"
+                    dataSource={fields}
+                    locale={{
+                      emptyText: globalRemindersFormEnabled
+                        ? '暂无自定义规则，请添加新的规则。'
+                        : '提醒服务已关闭',
+                    }}
+                    renderItem={(field, index: number) => {
+                      const { key, ...restField } = field;
+                      return (
+                        <List.Item
+                          key={key}
+                          style={{
+                            padding: '12px 0',
+                            borderBottom:
+                              index < fields.length - 1
+                                ? '1px solid #f0f0f0'
+                                : 'none',
+                            opacity: !globalRemindersFormEnabled ? 0.5 : 1,
+                          }}
+                          actions={[]}
+                        >
+                          <Space align="baseline">
+                            <Form.Item
+                              {...restField}
+                              name={[field.name, 'value']}
+                              rules={[
+                                { required: true, message: '请输入时间值' },
+                                {
+                                  type: 'number',
+                                  min: 1,
+                                  message: '必须大于0',
+                                },
+                              ]}
+                              noStyle
+                            >
+                              <InputNumber
+                                placeholder="时间值 (>0)"
+                                style={{ width: '120px' }}
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              {...restField}
+                              name={[field.name, 'unit']}
+                              rules={[
+                                { required: true, message: '请选择单位' },
+                              ]}
+                              noStyle
+                            >
+                              <Select
+                                suffixIcon={<DownOutlined />}
+                                style={{ width: '110px' }}
+                                options={friendlyReminderUnitOptions}
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              {...restField}
+                              name={[field.name, 'mode']}
+                              rules={[
+                                { required: true, message: '请选择周期' },
+                              ]}
+                              noStyle
+                            >
+                              <Select
+                                suffixIcon={<DownOutlined />}
+                                style={{ width: '110px' }}
+                                options={repetitionOptions}
+                              />
+                            </Form.Item>
+                            <Form.Item
+                              {...restField}
+                              name={[field.name, 'note']}
+                              noStyle
+                            >
+                              <Input
+                                placeholder="规则描述 (可选)"
+                                style={{ width: '180px' }}
+                              />
+                            </Form.Item>
                             <Button
                               type="text"
                               danger
                               icon={<DeleteOutlined />}
+                              onClick={() => remove(field.name)}
                             >
                               删除
                             </Button>
-                          </Popconfirm>,
-                        ]}
-                      >
-                        <Space align="baseline">
-                          <Form.Item
-                            {...restField}
-                            name={[field.name, 'value']}
-                            rules={[
-                              { required: true, message: '请输入时间值' },
-                              { type: 'number', min: 1, message: '必须大于0' },
-                            ]}
-                            noStyle
-                          >
-                            <InputNumber
-                              placeholder="时间值 (>0)"
-                              style={{ width: '120px' }}
-                            />
-                          </Form.Item>
-                          <Form.Item
-                            {...restField}
-                            name={[field.name, 'unit']}
-                            rules={[{ required: true, message: '请选择单位' }]}
-                            noStyle
-                          >
-                            <Select
-                              suffixIcon={<DownOutlined />}
-                              style={{ width: '110px' }}
-                              options={friendlyReminderUnitOptions}
-                            />
-                          </Form.Item>
-                          <Form.Item
-                            {...restField}
-                            name={[field.name, 'repetition']}
-                            rules={[{ required: true, message: '请选择周期' }]}
-                            noStyle
-                          >
-                            <Select
-                              suffixIcon={<DownOutlined />}
-                              style={{ width: '110px' }}
-                              options={repetitionOptions}
-                            />
-                          </Form.Item>
-                          <Form.Item
-                            {...restField}
-                            name={[field.name, 'description']}
-                            noStyle
-                          >
-                            <Input
-                              placeholder="规则描述 (可选)"
-                              style={{ width: '180px' }}
-                            />
-                          </Form.Item>
-                        </Space>
-                      </List.Item>
-                    );
-                  }}
-                />
-                <Button
-                  type="dashed"
-                  onClick={() =>
-                    add({
-                      id: uuidv4(),
-                      value: 1,
-                      unit: 'DAYS' as ReviewRuleUnit,
-                      repetition: 'ONCE' as ReviewRuleRepetition,
-                      description: '',
-                    })
-                  }
-                  icon={<PlusOutlined />}
-                  style={{ marginTop: '12px', width: '100%' }}
-                  size="large"
-                >
-                  添加新规则
-                </Button>
-                <Button
-                  icon={<UndoOutlined />}
-                  onClick={handleResetRules}
-                  style={{ marginTop: '12px', marginLeft: '8px' }}
-                >
-                  重置规则
-                </Button>
-              </>
-            )}
-          </Form.List>
+                          </Space>
+                        </List.Item>
+                      );
+                    }}
+                  />
+                  <Button
+                    type="link"
+                    className="px-0!"
+                    onClick={() =>
+                      add({
+                        id: uuidv4(),
+                        value: 1,
+                        unit: IntervalUnit.DAY,
+                        mode: ReviewMode.ONCE,
+                        note: '',
+                      } satisfies ReviewRuleDto)
+                    }
+                    icon={<PlusOutlined />}
+                    size="large"
+                  >
+                    添加新规则
+                  </Button>
+                </>
+              )}
+            </Form.List>
+          </Card>
 
-          <Divider />
-
-          <Form.Item style={{ marginTop: '24px', textAlign: 'right' }}>
-            <Button
-              type="primary"
-              htmlType="submit"
-              icon={<SaveOutlined />}
-              loading={savingSettings}
-              style={{ minWidth: '120px' }}
-            >
-              保存设置
-            </Button>
-          </Form.Item>
+          <div className="flex">
+            <div className="flex-1"></div>
+            <Space>
+              <Button icon={<UndoOutlined />} onClick={handleResetRules}>
+                重置规则
+              </Button>
+              <Button
+                type="primary"
+                icon={<SaveOutlined />}
+                loading={savingSettings}
+                style={{ minWidth: '120px' }}
+                onClick={() => form.submit()}
+              >
+                保存设置
+              </Button>
+            </Space>
+          </div>
         </Form>
-      </Card>
+      </div>
     </Spin>
   );
 }

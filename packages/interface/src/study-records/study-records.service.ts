@@ -17,7 +17,6 @@ import {
 import { CreateStudyRecordDto } from './dto/create-study-record.dto';
 import { UpdateStudyRecordDto } from './dto/update-study-record.dto';
 import * as dayjs from 'dayjs';
-import * as utc from 'dayjs/plugin/utc';
 import * as customParseFormat from 'dayjs/plugin/customParseFormat';
 import * as isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import * as isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
@@ -26,7 +25,6 @@ import {
   UpcomingReviewInRecordDto,
 } from './dto/study-record-with-reviews.dto';
 
-dayjs.extend(utc);
 dayjs.extend(customParseFormat);
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isSameOrBefore);
@@ -59,7 +57,7 @@ export class StudyRecordsService {
         );
       }
 
-      const studiedAtDate = dayjs.utc(createStudyRecordDto.studiedAt);
+      const studiedAtDate = dayjs(createStudyRecordDto.studiedAt);
       if (!studiedAtDate.isValid()) {
         throw new BadRequestException('提供的 studiedAt 日期时间字符串无效。');
       }
@@ -105,7 +103,7 @@ export class StudyRecordsService {
     }
 
     if (filterDate) {
-      const day = dayjs.utc(filterDate, 'YYYY-MM-DD');
+      const day = dayjs(filterDate, 'YYYY-MM-DD');
       if (!day.isValid()) {
         throw new BadRequestException(
           '提供的 filterDate 日期字符串无效或格式不正确 (应为 YYYY-MM-DD)。',
@@ -120,8 +118,7 @@ export class StudyRecordsService {
     }
 
     if (addedWithinDays && addedWithinDays > 0) {
-      const sinceDate = dayjs
-        .utc()
+      const sinceDate = dayjs()
         .subtract(addedWithinDays, 'day')
         .startOf('day')
         .toDate();
@@ -134,6 +131,9 @@ export class StudyRecordsService {
       return await this.prisma.studyRecord.findMany({
         where: whereClause,
         orderBy: { studiedAt: 'desc' }, // 或 createdAt: 'desc' 如果主要关心添加顺序
+        include: {
+          course: true,
+        },
       });
     } catch (error) {
       this.logger.error(
@@ -193,7 +193,7 @@ export class StudyRecordsService {
       dataToUpdate.note = updateStudyRecordDto.note;
     }
     if (updateStudyRecordDto.studiedAt) {
-      const studiedAtDate = dayjs.utc(updateStudyRecordDto.studiedAt);
+      const studiedAtDate = dayjs(updateStudyRecordDto.studiedAt);
       if (!studiedAtDate.isValid()) {
         throw new BadRequestException('提供的 studiedAt 日期时间字符串无效。');
       }
@@ -257,7 +257,6 @@ export class StudyRecordsService {
       select: {
         studiedAt: true,
       },
-      // take: 365, // Consider a limit for very long streaks
     });
 
     if (records.length === 0) {
@@ -272,13 +271,21 @@ export class StudyRecordsService {
     let consecutiveDays = 0;
     let currentDate = today.clone();
 
+    // 检查今天是否有打卡
     if (studyDates.has(currentDate.format('YYYY-MM-DD'))) {
       consecutiveDays = 1;
       currentDate = currentDate.subtract(1, 'day');
     } else {
-      return 0; // Not studied today, so 0 consecutive days
+      // 今天没有打卡，从昨天开始检查
+      currentDate = currentDate.subtract(1, 'day');
+
+      // 如果昨天也没有打卡，连续天数为0
+      if (!studyDates.has(currentDate.format('YYYY-MM-DD'))) {
+        return 0;
+      }
     }
 
+    // 继续向前查找连续的打卡日期
     while (studyDates.has(currentDate.format('YYYY-MM-DD'))) {
       consecutiveDays++;
       currentDate = currentDate.subtract(1, 'day');
@@ -291,7 +298,7 @@ export class StudyRecordsService {
     studiedAt: Date,
     rule: ReviewRule,
   ): dayjs.Dayjs | null {
-    const baseTime = dayjs(studiedAt).utc().second(0).millisecond(0);
+    const baseTime = dayjs(studiedAt).second(0).millisecond(0);
     const expectedTime = this.addInterval(baseTime, rule.value, rule.unit);
 
     if (rule.mode === ReviewMode.ONCE) {
@@ -349,7 +356,7 @@ export class StudyRecordsService {
       `Fetching study records and reviews for user ${userId} for ${year}-${month}`,
     );
 
-    const monthStart = dayjs.utc(`${year}-${month}-01`).startOf('month');
+    const monthStart = dayjs(`${year}-${month}-01`).startOf('month');
     const monthEnd = monthStart.endOf('month');
 
     const studyRecordSelectScope = {
@@ -444,7 +451,7 @@ export class StudyRecordsService {
       }
 
       for (const rule of reviewRules) {
-        const baseTime = dayjs(record.studiedAt).utc().second(0).millisecond(0);
+        const baseTime = dayjs(record.studiedAt).second(0).millisecond(0);
         const nextReviewTime = this.addInterval(
           baseTime,
           rule.value,

@@ -14,10 +14,8 @@ import {
   ReviewMode,
 } from '@prisma/client';
 import * as dayjs from 'dayjs';
-import * as utc from 'dayjs/plugin/utc';
 import * as customParseFormat from 'dayjs/plugin/customParseFormat';
 
-dayjs.extend(utc);
 dayjs.extend(customParseFormat);
 
 // 辅助类型，用于组合用户及其相关数据
@@ -44,9 +42,9 @@ export class NotificationsService {
   ) {}
 
   private constructBaseTime(studyRecord: StudyRecord): dayjs.Dayjs {
-    // studyRecord.studiedAt is a Date object from Prisma, assumed to be UTC.
+    // studyRecord.studiedAt is a Date object from Prisma.
     // We directly use it and standardize seconds and milliseconds.
-    return dayjs(studyRecord.studiedAt).utc().second(0).millisecond(0);
+    return dayjs(studyRecord.studiedAt).second(0).millisecond(0);
   }
 
   private addInterval(
@@ -75,7 +73,7 @@ export class NotificationsService {
   @Cron(CronExpression.EVERY_MINUTE)
   async handleScheduledReviewChecks() {
     this.logger.log('运行计划中的复习项检查 (使用 dayjs)...');
-    const now = dayjs.utc().second(0).millisecond(0); // 当前 UTC 时间，标准化到分钟
+    const now = dayjs().second(0).millisecond(0); // 当前中国时间，标准化到分钟
 
     const users = (await this.prisma.user.findMany({
       where: {

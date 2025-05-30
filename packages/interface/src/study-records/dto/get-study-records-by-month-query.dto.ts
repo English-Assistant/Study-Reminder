@@ -1,4 +1,3 @@
-// import { ApiProperty } from '@nestjs/swagger'; // 移除 Swagger
 import { IsInt, IsNotEmpty, Max, Min } from 'class-validator';
 import { Type } from 'class-transformer';
 

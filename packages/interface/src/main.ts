@@ -30,8 +30,8 @@ async function bootstrap() {
   await app.listen(port);
   console.log(`Application is running on: ${await app.getUrl()}`);
   console.log(`Global API prefix set to: /${GLOBAL_API_PREFIX}`);
-  console.log(
-    `Swagger UI (if enabled) available at: ${await app.getUrl()}/${GLOBAL_API_PREFIX}/docs`,
-  );
 }
-bootstrap();
+bootstrap().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

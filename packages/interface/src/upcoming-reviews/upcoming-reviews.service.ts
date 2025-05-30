@@ -2,11 +2,9 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReviewRule, IntervalUnit, ReviewMode } from '@prisma/client';
 import * as dayjs from 'dayjs';
-import * as utc from 'dayjs/plugin/utc';
 import * as customParseFormat from 'dayjs/plugin/customParseFormat';
 import { UpcomingReviewDto } from './dto/upcoming-review.dto';
 
-dayjs.extend(utc);
 dayjs.extend(customParseFormat);
 
 @Injectable()
@@ -20,7 +18,7 @@ export class UpcomingReviewsService {
     rule: ReviewRule,
     now: dayjs.Dayjs,
   ): dayjs.Dayjs | null {
-    const baseTime = dayjs(studiedAt).utc().second(0).millisecond(0);
+    const baseTime = dayjs(studiedAt).second(0).millisecond(0);
     let expectedTime = this.addInterval(baseTime, rule.value, rule.unit);
 
     if (rule.mode === ReviewMode.ONCE) {
@@ -83,7 +81,7 @@ export class UpcomingReviewsService {
     this.logger.log(
       `Fetching upcoming reviews for user ${userId} within ${withinDays} days.`,
     );
-    const now = dayjs.utc();
+    const now = dayjs();
     const endDateLimit = now.add(withinDays, 'day').endOf('day');
 
     const userWithData = await this.prisma.user.findUnique({

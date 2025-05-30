@@ -1,4 +1,3 @@
-// import { ApiProperty } from '@nestjs/swagger'; // 移除 Swagger
 import { StudyRecord } from '@prisma/client';
 
 export class UpcomingReviewInRecordDto {

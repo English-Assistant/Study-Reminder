@@ -25,9 +25,7 @@ export async function createStudyRecordApi(
 /**
  * 获取学习记录列表
  */
-export async function getAllStudyRecordsApi(
-  params?: GetStudyRecordsDto,
-): Promise<StudyRecord[]> {
+export async function getAllStudyRecordsApi(params?: GetStudyRecordsDto) {
   const response = await request.get<
     GlobalApiTypes<ReturnType<StudyRecordsController['findAll']>>
   >('/study-records', { params });
@@ -74,5 +72,15 @@ export async function getStudyRecordsByMonthApi(
   const response = await request.get<
     GlobalApiTypes<ReturnType<StudyRecordsController['getByMonth']>>
   >('/study-records/by-month', { params });
+  return response.data.data;
+}
+
+/*
+ * 获取连续学习天数
+ */
+export async function getConsecutiveDaysApi() {
+  const response = await request.get<
+    GlobalApiTypes<ReturnType<StudyRecordsController['getConsecutiveDays']>>
+  >('/study-records/consecutive-days');
   return response.data.data;
 }

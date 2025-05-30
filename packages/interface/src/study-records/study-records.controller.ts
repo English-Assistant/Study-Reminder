@@ -19,7 +19,6 @@ import { UpdateStudyRecordDto } from './dto/update-study-record.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from 'src/auth/interfaces/authenticated-request.interface';
 import { GetStudyRecordsDto } from './dto/get-study-records.dto';
-import { StudyRecordDto } from './dto/study-record.dto';
 import { GetStudyRecordsByMonthQueryDto } from './dto/get-study-records-by-month-query.dto';
 import { StudyRecordWithReviewsDto } from './dto/study-record-with-reviews.dto';
 
@@ -38,7 +37,7 @@ export class StudyRecordsController {
   create(
     @Req() req: AuthenticatedRequest,
     @Body() createStudyRecordDto: CreateStudyRecordDto,
-  ): Promise<StudyRecordDto> {
+  ) {
     return this.studyRecordsService.create(req.user.id, createStudyRecordDto);
   }
 
@@ -52,7 +51,7 @@ export class StudyRecordsController {
   findAll(
     @Req() req: AuthenticatedRequest,
     @Query() query: GetStudyRecordsDto,
-  ): Promise<StudyRecordDto[]> {
+  ) {
     const userId = req.user.id;
     return this.studyRecordsService.findAllByUserId(
       userId,
@@ -107,7 +106,7 @@ export class StudyRecordsController {
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: AuthenticatedRequest,
-  ): Promise<StudyRecordDto | null> {
+  ) {
     return this.studyRecordsService.findOne(id, req.user.id);
   }
 
@@ -124,7 +123,7 @@ export class StudyRecordsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: AuthenticatedRequest,
     @Body() updateStudyRecordDto: UpdateStudyRecordDto,
-  ): Promise<StudyRecordDto | null> {
+  ) {
     return this.studyRecordsService.update(
       id,
       req.user.id,

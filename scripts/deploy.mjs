@@ -47,10 +47,10 @@ function getPackageInfo() {
 
 // 生成镜像标签
 function generateImageTags(serviceName, version, username = 'boses') {
-  // 优先使用 RELEASE_TAG（来自 GitHub Actions release），然后是 GITHUB_REF_NAME
-  const releaseTag = process.env.RELEASE_TAG || process.env.GITHUB_REF_NAME;
+  // 优先使用 RELEASE_TAG（来自 GitHub Actions release），然后是 package.json 版本
+  const releaseTag = process.env.RELEASE_TAG;
 
-  // 处理版本号，移除 'v' 前缀，但只有在releaseTag看起来像版本号时才使用
+  // 处理版本号，移除 'v' 前缀
   let effectiveVersion = version;
   if (releaseTag && releaseTag.match(/^v?\d+\.\d+\.\d+/)) {
     effectiveVersion = releaseTag.replace(/^v/, '');
@@ -61,16 +61,7 @@ function generateImageTags(serviceName, version, username = 'boses') {
   const tags = {
     latest: baseImageName + ':latest',
     version: baseImageName + ':' + effectiveVersion,
-    timestamp:
-      baseImageName +
-      ':' +
-      new Date().toISOString().slice(0, 19).replace(/:/g, '-'),
   };
-
-  // 如果是从 release 触发的，也添加原始 tag
-  if (releaseTag && releaseTag.match(/^v?\d+\.\d+\.\d+/)) {
-    tags.release = baseImageName + ':' + releaseTag;
-  }
 
   return tags;
 }

@@ -101,23 +101,27 @@ jobs:
       # 显示部署结果
       - name: Deployment Summary
         run: |
+          # 从 tag_name 中移除 'v' 前缀得到版本号
+          VERSION="${{ needs.release-please.outputs.tag_name }}"
+          VERSION_NO_V="${VERSION#v}"
+
           echo "✅ 部署完成！"
           echo "🏷️  Release Tag: ${{ needs.release-please.outputs.tag_name }}"
           echo "📦 生成的镜像:"
           echo "   前端镜像:"
           echo "   - boses/study-reminder-front:latest"
-          echo "   - boses/study-reminder-front:${{ needs.release-please.outputs.tag_name }}"
+          echo "   - boses/study-reminder-front:${VERSION_NO_V}"
           echo "   后端镜像:"
           echo "   - boses/study-reminder-backend:latest"
-          echo "   - boses/study-reminder-backend:${{ needs.release-please.outputs.tag_name }}"
+          echo "   - boses/study-reminder-backend:${VERSION_NO_V}"
           echo ""
           if [[ "${{ steps.check-credentials.outputs.has_credentials }}" == "true" ]]; then
             echo "🚀 镜像已推送到 Docker Hub，使用以下命令部署："
-            echo "   docker pull boses/study-reminder-front:${{ needs.release-please.outputs.tag_name }}"
-            echo "   docker pull boses/study-reminder-backend:${{ needs.release-please.outputs.tag_name }}"
+            echo "   docker pull boses/study-reminder-front:${VERSION_NO_V}"
+            echo "   docker pull boses/study-reminder-backend:${VERSION_NO_V}"
           else
             echo "🔧 镜像仅本地构建完成，手动推送命令："
             echo "   docker login"
-            echo "   docker push boses/study-reminder-front:${{ needs.release-please.outputs.tag_name }}"
-            echo "   docker push boses/study-reminder-backend:${{ needs.release-please.outputs.tag_name }}"
+            echo "   docker push boses/study-reminder-front:${VERSION_NO_V}"
+            echo "   docker push boses/study-reminder-backend:${VERSION_NO_V}"
           fi

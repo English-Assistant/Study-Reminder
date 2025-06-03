@@ -100,33 +100,54 @@ export function EntryFormModal({
           title: editingItem.textTitle,
           description: editingItem.note || undefined,
           courseId: editingItem.courseId,
-          startTime: editingItem.studiedAt
-            ? dayjs(editingItem.studiedAt)
-            : undefined,
+          startTime: dayjs(editingItem.studiedAt),
         });
       } else {
-        // 创建模式下，可以预设 selectedDate 的时间为当前时间，或留空由用户选择
-        // form.setFieldsValue({ startTime: dayjs().hour(selectedDate.hour()).minute(selectedDate.minute()) });
+        form.setFieldsValue({
+          startTime: dayjs(),
+        });
       }
     }
-  }, [editingItem, form, isVisible, isEditMode /*, selectedDate */]);
+  }, [editingItem, form, isVisible, isEditMode]);
 
   const handleOk = async () => {
     const values = await form.validateFields();
 
     let studiedAtDate: Dayjs;
-    if (values.startTime) {
-      const baseDate =
-        isEditMode && editingItem ? dayjs(editingItem.studiedAt) : selectedDate;
-      studiedAtDate = baseDate
-        .hour(values.startTime.hour())
-        .minute(values.startTime.minute())
-        .second(0)
-        .millisecond(0);
+
+    if (isEditMode && editingItem) {
+      // 编辑模式
+      if (values.startTime) {
+        // 如果选择了时间，使用选择的完整时间
+        studiedAtDate = values.startTime;
+      } else {
+        // 如果没有选择时间，使用当前时间的小时和分钟 + 原记录的日期
+        const originalDate = dayjs(editingItem.studiedAt);
+        const currentTime = dayjs();
+        studiedAtDate = originalDate
+          .hour(currentTime.hour())
+          .minute(currentTime.minute())
+          .second(0)
+          .millisecond(0);
+      }
     } else {
-      const baseDate =
-        isEditMode && editingItem ? dayjs(editingItem.studiedAt) : selectedDate;
-      studiedAtDate = baseDate.startOf('day');
+      // 新增模式
+      if (values.startTime) {
+        // 如果选择了时间，使用当前日期 + 选择的时间（小时分钟）
+        studiedAtDate = selectedDate
+          .hour(values.startTime.hour())
+          .minute(values.startTime.minute())
+          .second(0)
+          .millisecond(0);
+      } else {
+        // 如果没有选择时间，使用当前日期 + 当前时间的小时和分钟
+        const currentTime = dayjs();
+        studiedAtDate = selectedDate
+          .hour(currentTime.hour())
+          .minute(currentTime.minute())
+          .second(0)
+          .millisecond(0);
+      }
     }
 
     if (isEditMode && editingItem) {
@@ -207,13 +228,18 @@ export function EntryFormModal({
 
         <Row gutter={16}>
           <Col span={12}>
-            <Form.Item name="startTime" label="学习时间 (可选)">
-              <DatePicker.TimePicker format="HH:mm" style={{ width: '100%' }} />
+            <Form.Item name="startTime" label="学习时间">
+              <DatePicker.TimePicker
+                format="HH:mm"
+                style={{ width: '100%' }}
+                allowClear
+                placeholder="选择时间"
+              />
             </Form.Item>
           </Col>
         </Row>
 
-        <Form.Item name="description" label="笔记 (可选)">
+        <Form.Item name="description" label="备注">
           <Input.TextArea
             rows={3}
             placeholder="例如：重点掌握xx概念，完成xx练习题"

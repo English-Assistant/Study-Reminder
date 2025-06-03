@@ -1,14 +1,18 @@
 import { StudyRecord } from '@prisma/client';
 
+interface CourseSummaryForDto {
+  id: string;
+  name: string;
+  color?: string | null; // 从 Prisma 同步，可以是 null
+  note?: string | null; // 从 Prisma 同步，改为 note
+}
+
 export class UpcomingReviewInRecordDto {
   // @ApiProperty({ description: '学习记录ID' })
   studyRecordId: string; // 学习记录ID
 
-  // @ApiProperty({ description: '课程ID' })
-  courseId: string; // 课程ID
-
-  // @ApiProperty({ description: '课程名称' })
-  courseName: string; // 课程名称
+  // @ApiProperty({ description: '课程信息' })
+  course: CourseSummaryForDto; // 完整的课程信息
 
   // @ApiProperty({ description: '学习内容标题' })
   textTitle: string; // 学习内容标题
@@ -21,13 +25,6 @@ export class UpcomingReviewInRecordDto {
 
   // @ApiProperty({ description: '复习规则描述' })
   ruleDescription: string; // 复习规则描述
-}
-
-interface CourseSummaryForDto {
-  id: string;
-  name: string;
-  color?: string | null; // 从 Prisma 同步，可以是 null
-  note?: string | null; // 从 Prisma 同步，改为 note
 }
 
 export class StudyRecordWithReviewsDto

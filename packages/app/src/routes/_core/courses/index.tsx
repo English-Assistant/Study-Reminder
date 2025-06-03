@@ -167,7 +167,7 @@ function ManageCoursesComponent() {
     <>
       <Spin spinning={loadingCourses} tip="加载中...">
         <Layout className="bg-#fff container mx-auto">
-          <Content className="p-12 pt-0">
+          <Content className="p-6 pt-0">
             <style>
               {`
             .course-grid-container {

@@ -81,6 +81,8 @@ model Course {
   user         User          @relation(fields: [userId], references: [id])
   studyRecords StudyRecord[] // 对应打卡记录
   createdAt    DateTime      @default(now()) // 创建时间
+
+  @@unique([userId, name]) // 确保同一用户下课程名称唯一
 }
 
 /// 打卡记录表：记录用户每次打卡的信息
@@ -92,7 +94,7 @@ model StudyRecord {
   textTitle String // 打卡的课文标题
   note      String? // 可选备注
   user      User     @relation(fields: [userId], references: [id])
-  course    Course   @relation(fields: [courseId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now()) // 创建时间
 
   @@index([userId, studiedAt]) // 用于快速查询某用户在某个时间点之后的打卡记录

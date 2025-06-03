@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Form, Spin, App, Tag, Tooltip } from 'antd';
+import { Form, Spin, App, Tag, Badge, Space } from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import { useState, useMemo } from 'react';
@@ -10,6 +10,7 @@ import type {
   StudyRecordWithReviewsDto,
   UpcomingReviewInRecordDto,
 } from '@y/interface/study-records/dto/study-record-with-reviews.dto.ts';
+import * as _ from 'lodash-es';
 
 interface EntryFormValues {
   title: string;
@@ -21,20 +22,20 @@ interface EntryFormValues {
 // import type { ManualReviewEntryDto } from '@y/interface/manual-review-entries-module/dto/manual-review-entry.dto.ts'; // 暂时注释
 import { useRequest } from 'ahooks';
 
-interface CalendarDisplayEvent {
-  id: string;
-  date: Dayjs;
-  type: 'study_record' | 'review_due';
-  title: string;
-  description?: string;
-  color?: string | null; // 允许 null，与 DTO 同步
-  source: StudyRecordWithReviewsDto | UpcomingReviewInRecordDto;
-  courseName?: string;
-}
+type CalendarDisplayEvent =
+  | Omit<StudyRecordWithReviewsDto, 'upcomingReviewsInMonth'>
+  | UpcomingReviewInRecordDto;
 
 export const Route = createFileRoute('/_core/study-records/')({
   component: AddCourseComponent,
 });
+
+// 类型守卫函数
+function isStudyRecord(
+  item: CalendarDisplayEvent,
+): item is Omit<StudyRecordWithReviewsDto, 'upcomingReviewsInMonth'> {
+  return 'studiedAt' in item && 'courseId' in item && 'textTitle' in item;
+}
 
 function AddCourseComponent() {
   const { message } = App.useApp();
@@ -72,28 +73,13 @@ function AddCourseComponent() {
   const calendarEvents = useMemo((): CalendarDisplayEvent[] => {
     const events: CalendarDisplayEvent[] = [];
     monthlyData.forEach((record) => {
-      events.push({
-        id: `sr-${record.id}`,
-        date: dayjs(record.studiedAt),
-        type: 'study_record',
-        title: record.textTitle,
-        description: record.note || undefined,
-        color: record.course?.color,
-        source: record,
-        courseName: record.course?.name,
-      });
+      // 添加学习记录 - 移除 upcomingReviewsInMonth 属性
+      const { upcomingReviewsInMonth, ...studyRecord } = record;
+      events.push(studyRecord);
 
-      record.upcomingReviewsInMonth.forEach((review) => {
-        events.push({
-          id: `rev-${record.id}-${review.ruleId}`,
-          date: dayjs(review.expectedReviewAt),
-          type: 'review_due',
-          title: `复习: ${review.textTitle}`,
-          description: review.ruleDescription,
-          color: 'gold',
-          source: review,
-          courseName: review.courseName,
-        });
+      // 添加复习提醒
+      upcomingReviewsInMonth.forEach((review) => {
+        events.push(review);
       });
     });
     return events;
@@ -110,28 +96,16 @@ function AddCourseComponent() {
     setIsEntryModalVisible(true);
   };
 
-  const handleOpenEditModal = (item: CalendarDisplayEvent) => {
-    if (
-      item.type === 'study_record' &&
-      item.source &&
-      'id' in item.source &&
-      'courseId' in item.source
-    ) {
-      const sourceRecord = item.source as StudyRecordWithReviewsDto;
-      setSelectedDateForModal(dayjs(sourceRecord.studiedAt));
-      setEntryToEdit(sourceRecord); // 存储完整的 sourceRecord 用于编辑
-
-      entryForm.setFieldsValue({
-        title: sourceRecord.textTitle,
-        description: sourceRecord.note || undefined,
-        courseId: sourceRecord.courseId,
-        // 如果 EntryFormValues 有 startTime 且与 studiedAt 对应
-        startTime: dayjs(sourceRecord.studiedAt),
-      });
-      setIsEntryModalVisible(true);
-    } else if (item.type === 'review_due') {
-      message.info('复习计划在"复习规则"页面管理，此处仅为提醒。');
-    }
+  const handleOpenEditModal = (item: StudyRecordWithReviewsDto) => {
+    setSelectedDateForModal(dayjs(item.studiedAt));
+    setEntryToEdit(item);
+    entryForm.setFieldsValue({
+      title: item.textTitle,
+      description: item.note || undefined,
+      courseId: item.courseId,
+      startTime: dayjs(item.studiedAt),
+    });
+    setIsEntryModalVisible(true);
   };
 
   const handleModalSuccess = () => {
@@ -149,53 +123,44 @@ function AddCourseComponent() {
     _date: Dayjs,
     entriesForDate: CalendarDisplayEvent[],
   ) => {
+    // 数据排序一下
+    const sortData = _.cloneDeep(entriesForDate).sort((f) => {
+      return isStudyRecord(f) ? -1 : 1;
+    });
+
     return (
       <ul className="list-none m-0 p-0 flex flex-col gap-1">
-        {entriesForDate.map((item) => {
-          const tagContent = (
-            <>
-              <div>{item.title}</div>
-              {item.type === 'study_record' &&
-                item.source &&
-                (item.source as StudyRecordWithReviewsDto).course?.note && (
-                  <div>
-                    {(item.source as StudyRecordWithReviewsDto).course?.note}
-                  </div>
-                )}
-            </>
-          );
-
-          return (
-            <li
-              key={item.id}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleOpenEditModal(item);
-              }}
-              title={item.title}
-            >
-              <Tooltip
-                title={
-                  <>
-                    <div>课程: {item.courseName || 'N/A'}</div>
-                    <div>
-                      {item.type === 'study_record' ? '打卡' : '复习'}:{' '}
-                      {item.title}
-                    </div>
-                    {item.description && <div>备注: {item.description}</div>}
-                  </>
-                }
+        {sortData.map((item) => {
+          // 添加的复习计划
+          if (isStudyRecord(item)) {
+            return (
+              <li
+                key={item.id}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenEditModal(item as StudyRecordWithReviewsDto);
+                }}
+                className="cursor-pointer"
               >
                 <Tag
-                  color={
-                    item.color ||
-                    (item.type === 'study_record' ? 'blue' : 'gold')
-                  }
-                  className="w-full m-0 cursor-pointer"
+                  color={item.course?.color || 'blue'}
+                  className="w-100% m-0!"
                 >
-                  {tagContent}
+                  {item.textTitle}
+                  <br />
+                  {item.course?.name}
                 </Tag>
-              </Tooltip>
+              </li>
+            );
+          }
+          // 待复习的计划
+          return (
+            <li key={item.expectedReviewAt.valueOf()}>
+              <Space align="center">
+                <Badge color={item.course.color || 'blue'} />
+                <div>{item.textTitle}</div>
+              </Space>
+              <div>{item.ruleDescription}</div>
             </li>
           );
         })}
@@ -206,7 +171,7 @@ function AddCourseComponent() {
   return (
     <>
       <Spin spinning={loadingEntries} tip="加载中...">
-        <div className="p-6">
+        <div className="p-6 bg-#fff">
           <CustomCalendar
             currentMonth={currentDisplayMonth}
             onMonthChange={setCurrentDisplayMonth}

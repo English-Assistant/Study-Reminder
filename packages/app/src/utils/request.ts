@@ -45,7 +45,7 @@ request.interceptors.request.use(
 request.interceptors.response.use(
   (response: AxiosResponse<BackendResponse<unknown>>) => {
     // 使用 unknown
-    const backendData = response.data;
+    const backendData = response.data || undefined;
 
     if (backendData && backendData.status >= 200 && backendData.status < 300) {
       return response; // 调用方通过 response.data.data 获取业务数据

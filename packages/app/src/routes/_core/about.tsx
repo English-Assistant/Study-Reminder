@@ -20,10 +20,7 @@ function AboutComponent() {
   ];
 
   return (
-    <div
-      style={{ padding: '20px 40px', margin: '0 auto' }}
-      className="bg-#fff rounded-xl container"
-    >
+    <div className="bg-#fff rounded-xl container p-6 mx-auto">
       <Title level={2} style={{ textAlign: 'center', marginBottom: '40px' }}>
         关于 Study Reminder
       </Title>
@@ -61,6 +58,14 @@ function AboutComponent() {
         </Paragraph>
         <Link href="mailto:yangboses@gmail.com" style={{ fontSize: '16px' }}>
           发送邮件反馈 (yangboses@gmail.com)
+        </Link>
+        <br></br>
+        <Link
+          href="https://github.com/English-Assistant/review/issues"
+          style={{ fontSize: '16px' }}
+          target="_blank"
+        >
+          问题反馈 (GitHub)
         </Link>
       </section>
     </div>

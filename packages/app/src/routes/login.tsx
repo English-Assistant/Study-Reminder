@@ -34,6 +34,7 @@ function RouteComponent() {
   });
 
   const onFinish: FormProps<LoginOrRegisterDto>['onFinish'] = (values) => {
+    values.email = values.email || undefined;
     run(values);
   };
 

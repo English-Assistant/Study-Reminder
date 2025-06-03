@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
+import clsx from 'clsx';
 // It's good practice to ensure locale is set if relying on week conventions
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 // import type { ManualReviewEntryDto } from '@y/interface/manual-review-entries-module/dto/manual-review-entry.dto.ts'; // 移除
@@ -12,16 +13,23 @@ import type {
 
 // 从父组件导入 CalendarDisplayEvent 类型，或者在此重新定义
 // 假设父组件会导出它，或者我们在这里定义一个匹配的本地类型
-interface CalendarDisplayEvent {
-  // 本地定义以匹配父组件中的结构
-  id: string;
-  date: Dayjs;
-  type: 'study_record' | 'review_due';
-  title: string;
-  description?: string;
-  color?: string | null;
-  source: StudyRecordWithReviewsDto | UpcomingReviewInRecordDto; // <--- 修改此处的类型
-  courseName?: string;
+type CalendarDisplayEvent =
+  | Omit<StudyRecordWithReviewsDto, 'upcomingReviewsInMonth'>
+  | UpcomingReviewInRecordDto;
+
+// 类型守卫函数
+function isStudyRecord(
+  item: CalendarDisplayEvent,
+): item is Omit<StudyRecordWithReviewsDto, 'upcomingReviewsInMonth'> {
+  return 'studiedAt' in item && 'courseId' in item && 'textTitle' in item;
+}
+
+function isUpcomingReview(
+  item: CalendarDisplayEvent,
+): item is UpcomingReviewInRecordDto {
+  return (
+    'expectedReviewAt' in item && 'studyRecordId' in item && 'course' in item
+  );
 }
 
 interface CustomCalendarProps {
@@ -94,9 +102,14 @@ export function CustomCalendar({
   };
 
   const getEntriesForDate = (date: Dayjs): CalendarDisplayEvent[] => {
-    return allEntries.filter(
-      (entry) => dayjs(entry.date).isSame(date, 'day'), // 使用 entry.date
-    );
+    return allEntries.filter((entry) => {
+      if (isStudyRecord(entry)) {
+        return dayjs(entry.studiedAt).isSame(date, 'day');
+      } else if (isUpcomingReview(entry)) {
+        return dayjs(entry.expectedReviewAt).isSame(date, 'day');
+      }
+      return false;
+    });
   };
 
   return (
@@ -132,38 +145,51 @@ export function CustomCalendar({
       </div>
 
       <div className="grid grid-cols-7 gap-1px bg-#E5E7EB border-1px border-solid border-#E5E7EB border-t-0">
-        {daysArray.map((day, index) => {
+        {daysArray.map((day) => {
           const isCurrentMonth = day.isSame(currentMonth, 'month');
           const isToday = day.isSame(dayjs(), 'day');
+          const isFuture = day.isAfter(dayjs(), 'day');
           const entries = getEntriesForDate(day);
 
-          let cellClassName = `relative min-h-40 p-4 flex flex-col hover:bg-gray-100 transition-colors duration-150 cursor-pointer`;
-
-          if (isCurrentMonth) {
-            cellClassName += ' bg-white';
-          } else {
-            cellClassName += ' bg-gray-50'; // Non-current month days
-          }
-
-          // Add right border to all cells except the last one in each row
-          if ((index + 1) % 7 !== 0) {
-            cellClassName += ' ';
-          }
+          const cellClassName = clsx(
+            // 基础样式
+            'relative min-h-40 p-4 flex flex-col transition-colors duration-150',
+            // 悬停和点击状态
+            {
+              'hover:bg-gray-100 cursor-pointer': !isFuture,
+              'cursor-not-allowed opacity-95': isFuture && isCurrentMonth,
+            },
+            // 背景色
+            {
+              'bg-white': isCurrentMonth,
+              'bg-gray-50': !isCurrentMonth,
+            },
+          );
 
           return (
             <div
               key={day.format('YYYY-MM-DD')}
               className={cellClassName}
-              onClick={() => onDateCellClick(day)}
+              onClick={() => {
+                // 未来日期直接返回，不执行任何操作
+                if (isFuture) {
+                  return;
+                }
+                onDateCellClick(day);
+              }}
             >
-              {/* Removed Vertical Bar */}
-
               {/* Date Number Container - top left */}
               <div className="relative z-10 h-7 self-start mb-1">
                 <span
-                  className={`text-xs w-6 h-6 flex items-center justify-center rounded-full
-                              ${isToday ? `${THEME_COLOR_BACKGROUND} text-white font-semibold` : isCurrentMonth ? 'text-gray-700' : 'text-gray-400'}
-                            `}
+                  className={clsx(
+                    'text-xs w-6 h-6 flex items-center justify-center rounded-full',
+                    {
+                      [`${THEME_COLOR_BACKGROUND} text-white font-semibold`]:
+                        isToday,
+                      'text-gray-700': !isToday && isCurrentMonth,
+                      'text-gray-400': !isToday && !isCurrentMonth,
+                    },
+                  )}
                 >
                   {day.date()}
                 </span>

@@ -8,7 +8,6 @@ import {
   Delete,
   UseGuards,
   Req,
-  ParseUUIDPipe,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -40,7 +39,7 @@ export class CoursesController {
 
   @Get(':courseId')
   async findOne(
-    @Param('courseId', new ParseUUIDPipe()) courseId: string,
+    @Param('courseId') courseId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<Course | null> {
     return this.coursesService.findOneByCourseIdAndUserId(
@@ -51,7 +50,7 @@ export class CoursesController {
 
   @Patch(':courseId')
   async update(
-    @Param('courseId', new ParseUUIDPipe()) courseId: string,
+    @Param('courseId') courseId: string,
     @Body() updateCourseDto: UpdateCourseDto,
     @Req() req: AuthenticatedRequest,
   ): Promise<Course> {
@@ -61,7 +60,7 @@ export class CoursesController {
   @Delete(':courseId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
-    @Param('courseId', new ParseUUIDPipe()) courseId: string,
+    @Param('courseId') courseId: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<Course> {
     // Prisma delete returns the deleted object

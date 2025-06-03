@@ -14,6 +14,9 @@ import {
 import { getUpcomingReviewsApi } from '@/apis/upcoming-reviews';
 import type { TableProps } from 'antd';
 import dayjs from 'dayjs';
+import { v4 as uuid } from 'uuid';
+import * as _ from 'lodash-es';
+import type { UpcomingReviewDto } from '@y/interface/upcoming-reviews/dto/upcoming-review.dto.js';
 
 const { Title, Text } = Typography;
 
@@ -49,7 +52,34 @@ function DashboardComponent() {
     },
   );
 
-  // 最近新增课程
+  type Tree = UpcomingReviewDto & { id: string } & {
+    expectedReviewAt: Date | null;
+  } & { children?: Tree[] };
+
+  // 树 upcomingReviews 结构
+  const upcomingReviewsTree = _.cloneDeep(upcomingReviews).reduce(
+    (arr, item) => {
+      const index = arr.findIndex((f) => f.textTitle === item.textTitle);
+      if (index >= 0) {
+        arr[index].children ||= [];
+        arr[index].children.push({
+          ...item,
+          id: uuid(),
+        });
+      } else {
+        arr.push({
+          ...item,
+          id: uuid(),
+          expectedReviewAt: null as never,
+        });
+      }
+
+      return arr;
+    },
+    [] as Tree[],
+  );
+
+  // 最近新增记录
   const columnsStudyRecord: TableProps<
     (typeof studyRecords)[number]
   >['columns'] = [
@@ -58,14 +88,14 @@ function DashboardComponent() {
       dataIndex: 'textTitle',
     },
     {
-      title: '课程',
+      title: '所属课程',
       dataIndex: ['course', 'name'],
     },
     {
-      title: '日期',
+      title: '添加日期',
       dataIndex: 'studiedAt',
       render(v) {
-        return dayjs(v).format('YYYY-MM-DD mm:ss');
+        return dayjs(v).format('YYYY-MM-DD HH:mm');
       },
     },
   ];
@@ -79,14 +109,14 @@ function DashboardComponent() {
       dataIndex: 'textTitle',
     },
     {
-      title: '课程',
+      title: '所属课程',
       dataIndex: 'courseName',
     },
     {
-      title: '日期',
+      title: '待复习日期',
       dataIndex: 'expectedReviewAt',
       render(v) {
-        return dayjs(v).format('YYYY-MM-DD mm:ss');
+        return v ? dayjs(v).format('YYYY-MM-DD HH:mm') : null;
       },
     },
   ];
@@ -110,7 +140,7 @@ function DashboardComponent() {
               icon={<PlusOutlined />}
               onClick={handleAddNewPlan}
             >
-              添加新计划
+              添加复习计划
             </Button>
           </Col>
         </Row>
@@ -118,7 +148,7 @@ function DashboardComponent() {
         <Row gutter={[24, 24]} style={{ marginBottom: '24px' }} align="stretch">
           <Col xs={24} sm={24} md={8}>
             <Card
-              bordered={false}
+              variant="borderless"
               style={{
                 boxShadow:
                   '0px 0px 1px 0px rgba(23, 26, 31, 0.07), 0px 0px 2px 0px rgba(23, 26, 31, 0.12)',
@@ -145,7 +175,7 @@ function DashboardComponent() {
                       color: '#646AE8',
                     }}
                   >
-                    {upcomingReviews?.length ?? 0}
+                    {upcomingReviewsTree.length}
                   </Text>
                   <Text
                     style={{
@@ -168,7 +198,7 @@ function DashboardComponent() {
           </Col>
           <Col xs={24} sm={24} md={8}>
             <Card
-              bordered={false}
+              variant="borderless"
               style={{
                 boxShadow:
                   '0px 0px 1px 0px rgba(23, 26, 31, 0.07), 0px 0px 2px 0px rgba(23, 26, 31, 0.12)',
@@ -179,7 +209,7 @@ function DashboardComponent() {
                 level={5}
                 style={{ margin: 0, color: '#242524', marginBottom: '10px' }}
               >
-                最近新增课程
+                最近新增记录
               </Title>
               <Row align="middle" gutter={8}>
                 <Col>
@@ -204,7 +234,7 @@ function DashboardComponent() {
                       marginLeft: '4px',
                     }}
                   >
-                    门
+                    条
                   </Text>
                 </Col>
               </Row>
@@ -218,7 +248,7 @@ function DashboardComponent() {
           </Col>
           <Col xs={24} sm={24} md={8}>
             <Card
-              bordered={false}
+              variant="borderless"
               style={{
                 boxShadow:
                   '0px 0px 1px 0px rgba(23, 26, 31, 0.07), 0px 0px 2px 0px rgba(23, 26, 31, 0.12)',
@@ -268,7 +298,7 @@ function DashboardComponent() {
                   待复习课程
                 </Title>
               }
-              bordered={false}
+              variant="borderless"
               style={{
                 boxShadow:
                   '0px 0px 1px 0px rgba(23, 26, 31, 0.07), 0px 0px 2px 0px rgba(23, 26, 31, 0.12)',
@@ -276,9 +306,11 @@ function DashboardComponent() {
               extra={null}
             >
               <Table
+                rowKey="id"
+                scroll={{ y: 300 }}
                 pagination={false}
                 columns={columnsUpcoming}
-                dataSource={upcomingReviews}
+                dataSource={upcomingReviewsTree}
               />
             </Card>
           </Col>
@@ -286,10 +318,10 @@ function DashboardComponent() {
             <Card
               title={
                 <Title level={4} style={{ margin: 0 }}>
-                  最近新增课程
+                  最近新增记录
                 </Title>
               }
-              bordered={false}
+              variant="borderless"
               style={{
                 boxShadow:
                   '0px 0px 1px 0px rgba(23, 26, 31, 0.07), 0px 0px 2px 0px rgba(23, 26, 31, 0.12)',
@@ -297,8 +329,12 @@ function DashboardComponent() {
             >
               <Table
                 pagination={false}
+                rowKey="id"
                 columns={columnsStudyRecord}
                 dataSource={studyRecords}
+                scroll={{
+                  y: 300,
+                }}
               />
             </Card>
           </Col>

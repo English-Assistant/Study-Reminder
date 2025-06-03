@@ -27,8 +27,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           # 对于 monorepo，使用 node 类型
           release-type: node
-          # 指定要管理的包路径（根目录）
-          package-name: study-reminder
 
   # 部署作业，仅在创建新 release 时运行
   deploy:

@@ -44,6 +44,9 @@ request.interceptors.request.use(
 // 添加响应拦截器
 request.interceptors.response.use(
   (response: AxiosResponse<BackendResponse<unknown>>) => {
+    if (response.status === 204) {
+      return response;
+    }
     // 使用 unknown
     const backendData = response.data || undefined;
 

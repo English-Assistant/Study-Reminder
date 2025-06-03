@@ -38,44 +38,47 @@ export class NotificationsGateway
   handleConnection(client: AuthenticatedSocket) {
     const token = client.handshake.auth.token || client.handshake.query.token;
     this.logger.log(
-      `Attempting to connect client ${client.id} with token: ${token ? 'present' : 'absent'}`,
+      `尝试连接客户端 ${client.id}, token状态: ${token ? '存在' : '不存在'}`,
     );
 
     if (!token) {
-      this.logger.warn(
-        `Client ${client.id} connection rejected: No token provided.`,
-      );
-      client.emit('error', 'Authentication error: No token provided.');
+      this.logger.warn(`客户端 ${client.id} 连接被拒绝: 未提供token`);
+      client.emit('error', '认证错误: 未提供token');
       client.disconnect(true);
       return;
     }
 
     try {
       const secret = this.configService.get<string>('JWT_SECRET');
+      this.logger.log(`JWT_SECRET状态: ${secret ? '已配置' : '未配置'}`);
+
       if (!secret) {
-        this.logger.error(
-          'JWT_SECRET not configured. Cannot authenticate WebSocket connections.',
-        );
-        throw new Error('Server configuration error for JWT.');
+        this.logger.error('未配置JWT_SECRET。无法认证WebSocket连接。');
+        throw new Error('服务器JWT配置错误');
       }
+
+      this.logger.log(`正在验证token: ${token.substring(0, 10)}...`);
+
       const payload: { sub: string; username: string } = this.jwtService.verify(
         token as string,
         { secret },
       );
 
+      this.logger.log(
+        `Token验证成功，用户: ${payload.username}, ID: ${payload.sub}`,
+      );
+
       if (!payload || !payload.sub) {
-        throw new UnauthorizedException('Invalid token payload.');
+        throw new UnauthorizedException('无效的token载荷');
       }
 
       this.verifyUserAndSetupSocket(client, payload);
     } catch (error) {
-      this.logger.warn(
-        `Client ${client.id} authentication failed: ${error.message}`,
+      this.logger.error(
+        `客户端 ${client.id} 认证失败: ${error.message}`,
+        error.stack,
       );
-      client.emit(
-        'error',
-        `Authentication error: ${error.message || 'Invalid token'}`,
-      );
+      client.emit('error', `认证错误: ${error.message || '无效token'}`);
       client.disconnect(true);
     }
   }
@@ -95,7 +98,7 @@ export class NotificationsGateway
       client.user = user;
       client.join(user.id);
       this.logger.log(
-        `Client ${client.id} (User ${user.id} - ${user.username}) connected and joined room ${user.id}.`,
+        `客户端 ${client.id} (用户 ${user.id} - ${user.username}) 已连接并加入房间 ${user.id}。`,
       );
     } catch (error) {
       this.logger.warn(
@@ -110,12 +113,10 @@ export class NotificationsGateway
     if (client.user && client.user.id) {
       client.leave(client.user.id);
       this.logger.log(
-        `Client ${client.id} (User ${client.user.id} - ${client.user.username}) disconnected and left room ${client.user.id}.`,
+        `客户端 ${client.id} (用户 ${client.user.id} - ${client.user.username}) 已断开连接并离开房间 ${client.user.id}。`,
       );
     } else {
-      this.logger.log(
-        `Client ${client.id} disconnected (was not fully authenticated).`,
-      );
+      this.logger.log(`客户端 ${client.id} 已断开连接 (未完成完整认证)。`);
     }
   }
 
@@ -127,13 +128,13 @@ export class NotificationsGateway
     const userId = client.user
       ? `${client.user.id} - ${client.user.username}`
       : '未知用户';
-    this.logger.log(`Message from ${client.id} (User ${userId}): ${data}`);
-    return `Server received: ${data}`;
+    this.logger.log(`来自 ${client.id} (用户 ${userId}) 的消息: ${data}`);
+    return `服务器已收到: ${data}`;
   }
 
   sendToUser(userId: string, event: string, data: any) {
     this.logger.log(
-      `Attempting to send event '${event}' to user room ${userId} with data: ${JSON.stringify(
+      `尝试发送事件 '${event}' 到用户房间 ${userId}, 数据内容: ${JSON.stringify(
         data,
       )}`,
     );

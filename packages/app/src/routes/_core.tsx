@@ -16,6 +16,7 @@ import SidebarCalendarIcon from '@/assets/icons/sidebar-calendar-icon.svg?react'
 import SidebarSettingsIcon from '@/assets/icons/sidebar-settings-icon.svg?react';
 import SidebarInfoIcon from '@/assets/icons/sidebar-info-icon.svg?react';
 import { useUserStore } from '@/stores/user.store';
+import { useSocket } from '@/hooks/useSocket';
 
 const { Header, Content, Sider } = Layout;
 const { Title } = Typography;
@@ -83,6 +84,9 @@ function CoreLayoutComponent() {
   const logout = useUserStore((s) => s.actions.logout);
   const navigate = useNavigate();
 
+  // WebSocket连接和通知管理（静默运行）
+  useSocket();
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Header
@@ -109,24 +113,26 @@ function CoreLayoutComponent() {
           </Title>
         </Space>
 
-        <Dropdown
-          menu={{
-            items: [
-              {
-                label: '退出登录',
-                key: 'logout',
-                onClick: () => {
-                  logout();
-                  navigate({ to: '/login' });
+        <Space size="middle">
+          <Dropdown
+            menu={{
+              items: [
+                {
+                  label: '退出登录',
+                  key: 'logout',
+                  onClick: () => {
+                    logout();
+                    navigate({ to: '/login' });
+                  },
                 },
-              },
-            ],
-          }}
-        >
-          <Avatar className="cursor-pointer" size={32}>
-            {user?.username.slice(0, 1)}
-          </Avatar>
-        </Dropdown>
+              ],
+            }}
+          >
+            <Avatar className="cursor-pointer" size={32}>
+              {user?.username.slice(0, 1)}
+            </Avatar>
+          </Dropdown>
+        </Space>
       </Header>
       <Layout
         style={{

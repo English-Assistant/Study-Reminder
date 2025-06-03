@@ -9,6 +9,9 @@ import {
   Tag,
   App,
   Spin,
+  Space,
+  Button,
+  Popconfirm,
 } from 'antd';
 import type { Dayjs } from 'dayjs';
 import type { FormInstance } from 'antd';
@@ -16,6 +19,7 @@ import { useRequest } from 'ahooks';
 import {
   createStudyRecordApi,
   updateStudyRecordApi,
+  deleteStudyRecordApi,
 } from '@/apis/study-records';
 import type { CreateStudyRecordDto } from '@y/interface/study-records/dto/create-study-record.dto.ts';
 import type { UpdateStudyRecordDto } from '@y/interface/study-records/dto/update-study-record.dto.ts';
@@ -89,6 +93,20 @@ export function EntryFormModal({
       },
       onError: (error) => {
         message.error((error as Error).message || '更新学习记录失败');
+      },
+    },
+  );
+
+  const { run: runDeleteEntry, loading: loadingDelete } = useRequest(
+    deleteStudyRecordApi,
+    {
+      manual: true,
+      onError(e) {
+        message.error(e.message);
+      },
+      onSuccess() {
+        message.success('学习记录已删除!');
+        onSuccess();
       },
     },
   );
@@ -179,10 +197,36 @@ export function EntryFormModal({
       open={isVisible}
       onOk={handleOk}
       onCancel={onCancel}
-      okText={isEditMode ? '保存更改' : '添加记录'}
-      cancelText="取消"
-      confirmLoading={isEditMode ? loadingUpdate : loadingCreate}
       afterClose={() => form.resetFields()}
+      footer={
+        <div className="flex">
+          <div className="flex-1 text-left">
+            {editingItem ? (
+              <Popconfirm
+                title="删除提醒"
+                description={<div>确定要删除 {editingItem.textTitle} 吗？</div>}
+                onConfirm={() => {
+                  runDeleteEntry(editingItem.id);
+                }}
+              >
+                <Button loading={loadingDelete} danger>
+                  删除
+                </Button>
+              </Popconfirm>
+            ) : null}
+          </div>
+          <Space>
+            <Button onClick={onCancel}>取消</Button>
+            <Button
+              onClick={handleOk}
+              type="primary"
+              loading={isEditMode ? loadingUpdate : loadingCreate}
+            >
+              {isEditMode ? '保存更改' : '添加记录'}
+            </Button>
+          </Space>
+        </div>
+      }
     >
       <Form
         form={form}

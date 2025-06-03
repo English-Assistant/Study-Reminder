@@ -1,14 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import {
-  MailerModule,
-  // EjsAdapter, // Linter says this is not exported
-  // TemplateAdapter, // Removed as unused and to clear linter error temporarily
-} from '@nestjs-modules/mailer';
-// We need to find the correct way to import/use EJS adapter for the installed version
-import { EjsAdapter } from '@nestjs-modules/mailer/dist/adapters/ejs.adapter'; // Reverting to a previous attempt while user investigates
+import { MailerModule } from '@nestjs-modules/mailer';
 
-import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -24,6 +17,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { UpcomingReviewsModule } from './upcoming-reviews/upcoming-reviews.module';
 import { SettingsModule } from './settings/settings.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -47,13 +41,7 @@ import { SettingsModule } from './settings/settings.module';
         defaults: {
           from: `"${configService.get<string>('MAIL_FROM_NAME')}" <${configService.get<string>('MAIL_FROM_ADDRESS')}>`,
         },
-        template: {
-          dir: join(__dirname, '..', 'templates', 'email'),
-          adapter: new EjsAdapter(), // This line will still cause an error until EjsAdapter is correctly imported
-          options: {
-            strict: false,
-          },
-        },
+        // 移除模板配置，现在直接通过React Email生成HTML
       }),
       inject: [ConfigService],
     }),
@@ -68,6 +56,7 @@ import { SettingsModule } from './settings/settings.module';
     NotificationsModule,
     UpcomingReviewsModule,
     SettingsModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [AppService],

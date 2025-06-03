@@ -1,9 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
-import { join } from 'path';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsGateway } from '../gateways/notifications.gateway';
+import { MailService } from '../../mail/mail.service';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import {
   User,
@@ -13,8 +13,8 @@ import {
   IntervalUnit,
   ReviewMode,
 } from '@prisma/client';
-import * as dayjs from 'dayjs';
-import * as customParseFormat from 'dayjs/plugin/customParseFormat';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 
 dayjs.extend(customParseFormat);
 
@@ -22,12 +22,17 @@ dayjs.extend(customParseFormat);
 type UserWithRelations = User & {
   settings: Setting | null;
   reviewRules: ReviewRule[];
-  studyRecords: StudyRecord[];
+  studyRecords: (StudyRecord & {
+    course: {
+      id: string;
+      name: string;
+    } | null;
+  })[];
 };
 
 export interface ReviewReminderDetails {
   itemName: string; // 例如 StudyRecord.textTitle
-  // 可以根据需要添加更多字段，如 courseName, studyDate 等
+  courseName: string; // 课程名称
 }
 
 @Injectable()
@@ -39,6 +44,7 @@ export class NotificationsService {
     private readonly configService: ConfigService,
     private readonly prisma: PrismaService,
     private readonly notificationsGateway: NotificationsGateway,
+    private readonly mailService: MailService,
   ) {}
 
   private constructBaseTime(studyRecord: StudyRecord): dayjs.Dayjs {
@@ -86,6 +92,9 @@ export class NotificationsService {
         settings: true,
         reviewRules: true,
         studyRecords: {
+          include: {
+            course: true, // 包含课程信息
+          },
           orderBy: {
             createdAt: 'desc',
           },
@@ -168,6 +177,7 @@ export class NotificationsService {
 
             const reviewDetails: ReviewReminderDetails = {
               itemName: record.textTitle,
+              courseName: record.course?.name || '未知课程',
             };
 
             if (user.settings.emailNotification && user.email) {
@@ -176,7 +186,6 @@ export class NotificationsService {
                   user.email,
                   user.username,
                   reviewDetails,
-                  rule,
                 );
               } catch (error) {
                 this.logger.error(
@@ -188,15 +197,12 @@ export class NotificationsService {
 
             if (user.settings.inAppNotification) {
               try {
-                this.notificationsGateway.sendToUser(
-                  user.id,
-                  'reviewReminder',
-                  {
-                    ...reviewDetails,
-                    studyRecordId: record.id,
-                    ruleId: rule.id,
-                  },
-                );
+                this.sendInAppNotification(user.id, {
+                  title: '复习提醒',
+                  body: `现在需要复习 ${reviewDetails.itemName} - ${reviewDetails.courseName} 了`,
+                  tag: reviewDetails.itemName,
+                });
+
                 this.logger.log(
                   `已向用户 ${user.id} 发送应用内提醒 (记录: ${record.id}, 规则: ${rule.id})`,
                 );
@@ -218,30 +224,61 @@ export class NotificationsService {
     email: string,
     username: string,
     reviewDetails: ReviewReminderDetails,
-    rule: ReviewRule,
   ): Promise<void> {
-    const subject = `复习提醒: ${reviewDetails.itemName}`;
     this.logger.log(
-      `准备发送邮件提醒给 ${email} (用户: ${username}), 项目: ${reviewDetails.itemName}, 规则: ${rule.id}`,
+      `准备发送邮件提醒给 ${email} (用户: ${username}), 项目: ${reviewDetails.itemName}, 课程: ${reviewDetails.courseName}`,
     );
 
-    await this.mailerService.sendMail({
-      to: email,
-      subject: subject,
-      template: join('review-reminder'),
-      context: {
-        itemName: reviewDetails.itemName,
-        userName: username,
-        ruleDescription:
-          rule.note ||
-          `${rule.value} ${rule.unit === 'DAY' ? '天' : rule.unit === 'HOUR' ? '小时' : '分钟'}后${rule.mode === 'RECURRING' ? ' (周期性)' : ''}`,
-      },
-    });
-    this.logger.log(
-      `已成功发送复习提醒邮件给 ${email} (用户: ${username}), 项目: ${reviewDetails.itemName}`,
-    );
+    try {
+      await this.mailService.sendReviewReminderEmail(
+        email,
+        username,
+        reviewDetails.itemName,
+        reviewDetails.courseName,
+      );
+
+      this.logger.log(
+        `已成功发送复习提醒邮件给 ${email} (用户: ${username}), 项目: ${reviewDetails.itemName}`,
+      );
+    } catch (error) {
+      this.logger.error(`发送邮件失败: ${error.message}`, error.stack);
+      throw error;
+    }
   }
 
-  // 此处未来可以添加发送应用内通知的方法
-  // async sendInAppNotification(userId: string, message: any) { ... }
+  // 发送应用内通知的方法
+  sendInAppNotification(
+    userId: string,
+    data: {
+      title: string;
+      body: string;
+      tag: string;
+    },
+  ): void {
+    this.logger.log(`发送应用内通知给用户 ${userId}, 标题: ${data.title}`);
+
+    try {
+      const notificationPayload = {
+        title: data.title,
+        body: data.body,
+        tag: data.tag,
+        timestamp: new Date().toISOString(),
+      };
+
+      // 通过WebSocket发送实时通知
+      this.notificationsGateway.sendToUser(
+        userId,
+        'notification',
+        notificationPayload,
+      );
+
+      this.logger.log(`已成功发送应用内通知给用户 ${userId}`);
+    } catch (error) {
+      this.logger.error(
+        `发送应用内通知失败 (用户: ${userId}): ${error.message}`,
+        error.stack,
+      );
+      throw error;
+    }
+  }
 }

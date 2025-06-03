@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ReviewRule, IntervalUnit, ReviewMode } from '@prisma/client';
-import * as dayjs from 'dayjs';
-import * as customParseFormat from 'dayjs/plugin/customParseFormat';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { UpcomingReviewDto } from './dto/upcoming-review.dto';
 
 dayjs.extend(customParseFormat);
@@ -55,7 +55,7 @@ export class UpcomingReviewsService {
         dayjsUnit = 'day';
         break;
       default:
-        this.logger.warn(`Unsupported IntervalUnit: ${String(unit)}`);
+        this.logger.warn(`不支持的时间间隔单位: ${String(unit)}`);
         return date;
     }
     return date.add(value, dayjsUnit);
@@ -79,7 +79,7 @@ export class UpcomingReviewsService {
     withinDays: number,
   ): Promise<UpcomingReviewDto[]> {
     this.logger.log(
-      `Fetching upcoming reviews for user ${userId} within ${withinDays} days.`,
+      `正在获取用户 ${userId} 在 ${withinDays} 天内的待复习项目。`,
     );
     const now = dayjs();
     const endDateLimit = now.add(withinDays, 'day').endOf('day');
@@ -98,7 +98,7 @@ export class UpcomingReviewsService {
     });
 
     if (!userWithData) {
-      this.logger.warn(`User ${userId} not found for upcoming reviews.`);
+      this.logger.warn(`未找到用户 ${userId} 的待复习项目。`);
       return [];
     }
 
@@ -112,7 +112,7 @@ export class UpcomingReviewsService {
     for (const record of studyRecords) {
       if (!record.course) {
         this.logger.warn(
-          `Study record ${record.id} for user ${userId} is missing course data.`,
+          `用户 ${userId} 的学习记录 ${record.id} 缺少课程数据。`,
         );
         continue;
       }

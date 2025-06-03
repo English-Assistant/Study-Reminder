@@ -5,10 +5,11 @@ import { ConfigModule } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthModule } from '../auth/auth.module';
 import { UsersModule } from '../users/users.module';
+import { MailModule } from '../mail/mail.module';
 
 @Global()
 @Module({
-  imports: [ConfigModule, JwtModule, AuthModule, UsersModule],
+  imports: [ConfigModule, JwtModule, AuthModule, UsersModule, MailModule],
   providers: [NotificationsService, NotificationsGateway],
   exports: [NotificationsService, NotificationsGateway],
 })

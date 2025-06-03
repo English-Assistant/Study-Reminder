@@ -21,7 +21,7 @@ export class SettingsService {
   ) {}
 
   async getSettings(userId: string): Promise<SettingDto> {
-    this.logger.log(`Fetching settings for user ${userId}`);
+    this.logger.log(`正在获取用户 ${userId} 的设置`);
     try {
       const user = await this.prisma.user.findUnique({
         where: { id: userId },
@@ -32,9 +32,8 @@ export class SettingsService {
       });
 
       if (!user) {
-        this.logger.warn(
-          `User with ID ${userId} not found while fetching settings.`,
-        );
+        this.logger.warn(`获取设置时未找到ID为 ${userId} 的用户`);
+
         throw new NotFoundException('用户不存在');
       }
 
@@ -62,7 +61,7 @@ export class SettingsService {
       };
     } catch (error) {
       this.logger.error(
-        `Failed to fetch settings for user ${userId}: ${error.message}`,
+        `获取用户 ${userId} 的设置失败: ${error.message}`,
         error.stack,
       );
       if (error instanceof NotFoundException) {
@@ -76,7 +75,7 @@ export class SettingsService {
     userId: string,
     updateEmailDto: UpdateEmailDto,
   ): Promise<{ message: string }> {
-    this.logger.log(`Updating email for user ${userId}`);
+    this.logger.log(`正在更新用户 ${userId} 的邮箱`);
     try {
       await this.prisma.user.update({
         where: { id: userId },
@@ -85,7 +84,7 @@ export class SettingsService {
       return { message: '用户邮箱更新成功' };
     } catch (error) {
       this.logger.error(
-        `Failed to update email for user ${userId}: ${error.message}`,
+        `更新用户 ${userId} 的邮箱失败: ${error.message}`,
         error.stack,
       );
       // Prisma P2025: Record to update not found.
@@ -110,14 +109,14 @@ export class SettingsService {
     userId: string,
     dto: UpdateReviewNotificationSettingsDto,
   ): Promise<{ message: string }> {
-    this.logger.log(`Updating review/notification settings for user ${userId}`);
+    this.logger.log(`正在更新用户 ${userId} 的复习和通知设置`);
     try {
       // 1. 更新复习规则 (dto.reviewRules 现在是必填的)
       // setReviewRules 需要的 DTO 结构是 { rules: InputReviewRuleDto[] }
       await this.reviewSettingsService.setReviewRules(userId, {
         rules: dto.reviewRules,
       });
-      this.logger.log(`Review rules updated for user ${userId}`);
+      this.logger.log(`已更新用户 ${userId} 的复习规则`);
 
       // 2. 更新通知设置 (dto.notificationSettings 对象现在是必填的)
       // 其内部属性 (globalNotification, etc.) 仍然是可选的。
@@ -150,12 +149,12 @@ export class SettingsService {
           inAppNotification: inAppNotification,
         },
       });
-      this.logger.log(`Notification settings processed for user ${userId}`);
+      this.logger.log(`已处理用户 ${userId} 的通知设置`);
 
       return { message: '用户设置更新成功' };
     } catch (error) {
       this.logger.error(
-        `Failed to update review/notification settings for user ${userId}: ${error.message}`,
+        `更新用户 ${userId} 的复习和通知设置失败: ${error.message}`,
         error.stack,
       );
       if (error instanceof NotFoundException) {

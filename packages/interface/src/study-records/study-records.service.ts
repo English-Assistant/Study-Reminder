@@ -6,7 +6,7 @@ import {
   ForbiddenException,
   BadRequestException,
 } from '@nestjs/common';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   StudyRecord,
   Prisma,
@@ -16,10 +16,10 @@ import {
 } from '@prisma/client';
 import { CreateStudyRecordDto } from './dto/create-study-record.dto';
 import { UpdateStudyRecordDto } from './dto/update-study-record.dto';
-import * as dayjs from 'dayjs';
-import * as customParseFormat from 'dayjs/plugin/customParseFormat';
-import * as isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
-import * as isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
+import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import {
   StudyRecordWithReviewsDto,
   UpcomingReviewInRecordDto,
@@ -41,7 +41,7 @@ export class StudyRecordsService {
     createStudyRecordDto: CreateStudyRecordDto,
   ): Promise<StudyRecord> {
     this.logger.log(
-      `User ${userId} creating study record for course ${createStudyRecordDto.courseId}`,
+      `用户 ${userId} 正在为课程 ${createStudyRecordDto.courseId} 创建学习记录`,
     );
     try {
       const course = await this.prisma.course.findUnique({
@@ -74,7 +74,7 @@ export class StudyRecordsService {
       });
     } catch (error) {
       this.logger.error(
-        `Failed to create study record for user ${userId}: ${error.message}`,
+        `为用户 ${userId} 创建学习记录失败：${error.message}`,
         error.stack,
       );
       if (
@@ -95,7 +95,7 @@ export class StudyRecordsService {
     addedWithinDays?: number,
   ): Promise<StudyRecord[]> {
     this.logger.log(
-      `Fetching study records for user ${userId}, courseId: ${courseId}, filterDate: ${filterDate}, addedWithinDays: ${addedWithinDays}`,
+      `正在获取用户 ${userId} 的学习记录，课程ID：${courseId}，过滤日期：${filterDate}，添加天数范围：${addedWithinDays}`,
     );
     const whereClause: Prisma.StudyRecordWhereInput = { userId };
 
@@ -138,7 +138,7 @@ export class StudyRecordsService {
       });
     } catch (error) {
       this.logger.error(
-        `Failed to fetch study records for user ${userId}: ${error.message}`,
+        `获取用户 ${userId} 的学习记录失败：${error.message}`,
         error.stack,
       );
       if (error instanceof BadRequestException) throw error;
@@ -147,7 +147,7 @@ export class StudyRecordsService {
   }
 
   async findOne(id: string, userId: string): Promise<StudyRecord | null> {
-    this.logger.log(`Fetching study record ${id} for user ${userId}`);
+    this.logger.log(`正在获取用户 ${userId} 的学习记录 ${id}`);
     try {
       const record = await this.prisma.studyRecord.findUnique({
         where: { id },
@@ -161,7 +161,7 @@ export class StudyRecordsService {
       return record;
     } catch (error) {
       this.logger.error(
-        `Failed to fetch study record ${id} for user ${userId}: ${error.message}`,
+        `获取用户 ${userId} 的学习记录 ${id} 失败：${error.message}`,
         error.stack,
       );
       if (
@@ -179,7 +179,7 @@ export class StudyRecordsService {
     userId: string,
     updateStudyRecordDto: UpdateStudyRecordDto,
   ): Promise<StudyRecord> {
-    this.logger.log(`User ${userId} updating study record ${id}`);
+    this.logger.log(`用户 ${userId} 正在更新学习记录 ${id}`);
     await this.findOne(id, userId);
 
     const dataToUpdate: Prisma.StudyRecordUpdateInput = {};
@@ -212,7 +212,7 @@ export class StudyRecordsService {
       });
     } catch (error) {
       this.logger.error(
-        `Failed to update study record ${id} for user ${userId}: ${error.message}`,
+        `更新用户 ${userId} 的学习记录 ${id} 失败：${error.message}`,
         error.stack,
       );
       if (error.code === 'P2025') {
@@ -224,7 +224,7 @@ export class StudyRecordsService {
   }
 
   async remove(id: string, userId: string): Promise<void> {
-    this.logger.log(`User ${userId} deleting study record ${id}`);
+    this.logger.log(`用户 ${userId} 正在删除学习记录 ${id}`);
     await this.findOne(id, userId);
 
     try {
@@ -233,7 +233,7 @@ export class StudyRecordsService {
       });
     } catch (error) {
       this.logger.error(
-        `Failed to delete study record ${id} for user ${userId}: ${error.message}`,
+        `删除用户 ${userId} 的学习记录 ${id} 失败：${error.message}`,
         error.stack,
       );
       if (error.code === 'P2025') {
@@ -277,7 +277,7 @@ export class StudyRecordsService {
       },
     });
 
-    console.log('allRecords for user:', allRecords);
+    console.log('用户的所有记录:', allRecords);
 
     if (records.length === 0) {
       return 0;
@@ -313,23 +313,6 @@ export class StudyRecordsService {
     return consecutiveDays;
   }
 
-  private calculateNextReviewTime(
-    studiedAt: Date,
-    rule: ReviewRule,
-  ): dayjs.Dayjs | null {
-    const baseTime = dayjs(studiedAt).second(0).millisecond(0);
-    const expectedTime = this.addInterval(baseTime, rule.value, rule.unit);
-
-    if (rule.mode === ReviewMode.ONCE) {
-      return expectedTime;
-    }
-
-    if (rule.mode === ReviewMode.RECURRING) {
-      return expectedTime;
-    }
-    return null;
-  }
-
   private addInterval(
     date: dayjs.Dayjs,
     value: number,
@@ -347,7 +330,7 @@ export class StudyRecordsService {
         dayjsUnit = 'day';
         break;
       default:
-        this.logger.warn(`Unsupported IntervalUnit: ${String(unit)}`);
+        this.logger.warn(`不支持的时间单位：${String(unit)}`);
         return date;
     }
     return date.add(value, dayjsUnit);
@@ -372,7 +355,7 @@ export class StudyRecordsService {
     month: number, // 1-indexed
   ): Promise<StudyRecordWithReviewsDto[]> {
     this.logger.log(
-      `Fetching study records and reviews for user ${userId} for ${year}-${month}`,
+      `正在获取用户 ${userId} 在 ${year}年${month}月的学习记录和复习计划`,
     );
 
     const monthStart = dayjs(`${year}-${month}-01`).startOf('month');
@@ -531,7 +514,7 @@ export class StudyRecordsService {
       } => {
         if (!record.course) {
           this.logger.warn(
-            `Study record ${record.id} (title: ${record.textTitle}) for user ${record.userId} is missing course data. Skipping for review calculation.`,
+            `学习记录 ${record.id} (标题: ${record.textTitle}) 用户 ${record.userId} 缺少课程数据。跳过复习计算。`,
           );
           return false;
         }
@@ -618,7 +601,7 @@ export class StudyRecordsService {
         // 防止无限循环
         if (nextReviewTime.isSame(currentReviewTime)) {
           this.logger.warn(
-            `Potential infinite loop detected for record ${record.id} and rule ${rule.id} at time ${currentReviewTime.toISOString()}. Breaking.`,
+            `检测到记录 ${record.id} 和规则 ${rule.id} 在时间 ${currentReviewTime.toISOString()} 可能存在无限循环。中断执行。`,
           );
           break;
         }
@@ -629,7 +612,7 @@ export class StudyRecordsService {
 
       if (iterationCount >= maxIterations) {
         this.logger.warn(
-          `Maximum iterations reached for record ${record.id} and rule ${rule.id}. Possible infinite loop prevented.`,
+          `记录 ${record.id} 和规则 ${rule.id} 达到最大迭代次数。已阻止可能的无限循环。`,
         );
       }
     }

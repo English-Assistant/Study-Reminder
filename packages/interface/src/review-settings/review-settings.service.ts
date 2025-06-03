@@ -15,16 +15,14 @@ export class ReviewSettingsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getReviewRules(userId: string): Promise<ReviewRule[]> {
-    this.logger.log(`Fetching review rules for user ${userId}`);
+    this.logger.log(`正在获取用户 ${userId} 的复习规则`);
     try {
       return await this.prisma.reviewRule.findMany({
         where: { userId },
         orderBy: { value: 'asc' },
       });
     } catch (error) {
-      this.logger.error(
-        `Failed to fetch review rules for user ${userId}: ${error.message}`,
-      );
+      this.logger.error(`获取用户 ${userId} 的复习规则失败: ${error.message}`);
       throw new InternalServerErrorException('获取复习规则失败。');
     }
   }
@@ -34,17 +32,15 @@ export class ReviewSettingsService {
     dto: SetReviewRulesDto,
   ): Promise<ReviewRule[]> {
     const { rules } = dto;
-    this.logger.log(
-      `Setting review rules for user ${userId} with ${rules.length} rules.`,
-    );
+    this.logger.log(`正在为用户 ${userId} 设置 ${rules.length} 条复习规则`);
 
     try {
       return await this.prisma.$transaction(async (tx) => {
-        this.logger.log(`Transaction for user ${userId}: Deleting old rules.`);
+        this.logger.log(`用户 ${userId} 的事务: 正在删除旧规则`);
         await tx.reviewRule.deleteMany({
           where: { userId },
         });
-        this.logger.log(`Transaction for user ${userId}: Old rules deleted.`);
+        this.logger.log(`用户 ${userId} 的事务: 旧规则已删除`);
 
         if (rules && rules.length > 0) {
           const dataToCreate: Prisma.ReviewRuleCreateManyInput[] = rules.map(
@@ -57,14 +53,14 @@ export class ReviewSettingsService {
             }),
           );
           this.logger.log(
-            `Transaction for user ${userId}: Creating ${dataToCreate.length} new rules.`,
+            `用户 ${userId} 的事务: 正在创建 ${dataToCreate.length} 条新规则`,
           );
 
           await tx.reviewRule.createMany({
             data: dataToCreate,
           });
           this.logger.log(
-            `Transaction for user ${userId}: New rules created. Fetching updated rules.`,
+            `用户 ${userId} 的事务: 新规则已创建，正在获取更新后的规则`,
           );
 
           return tx.reviewRule.findMany({
@@ -72,15 +68,11 @@ export class ReviewSettingsService {
             orderBy: { value: 'asc' },
           });
         }
-        this.logger.log(
-          `Transaction for user ${userId}: No new rules provided. Returning empty array.`,
-        );
+        this.logger.log(`用户 ${userId} 的事务: 未提供新规则，返回空数组`);
         return [];
       });
     } catch (error) {
-      this.logger.error(
-        `Failed to set review rules for user ${userId}: ${error.message}`,
-      );
+      this.logger.error(`设置用户 ${userId} 的复习规则失败: ${error.message}`);
       throw new InternalServerErrorException('设置复习规则失败。');
     }
   }

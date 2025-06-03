@@ -9,7 +9,6 @@ import {
   UseGuards,
   Req,
   Query,
-  ParseUUIDPipe,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -98,29 +97,26 @@ export class StudyRecordsController {
   /**
    * 根据ID获取指定的学习记录。
    * 需要用户认证，且只能获取用户自己的学习记录。
-   * @param id 学习记录的UUID。
+   * @param id 学习记录的ID。
    * @param req 包含认证用户信息的请求对象。
    * @returns 学习记录对象，如果未找到则返回 null 或抛出 NotFoundException。
    */
   @Get(':id')
-  findOne(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Req() req: AuthenticatedRequest,
-  ) {
+  findOne(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.studyRecordsService.findOne(id, req.user.id);
   }
 
   /**
    * 更新指定的学习记录。
    * 需要用户认证，且只能更新用户自己的学习记录。
-   * @param id 学习记录的UUID。
+   * @param id 学习记录的ID。
    * @param req 包含认证用户信息的请求对象。
    * @param updateStudyRecordDto 更新学习记录所需的数据传输对象。
    * @returns 更新后的学习记录对象，如果未找到则返回 null 或抛出 NotFoundException。
    */
   @Patch(':id')
   update(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Req() req: AuthenticatedRequest,
     @Body() updateStudyRecordDto: UpdateStudyRecordDto,
   ) {
@@ -134,14 +130,14 @@ export class StudyRecordsController {
   /**
    * 根据ID删除指定的学习记录。
    * 需要用户认证，且只能删除用户自己的学习记录。
-   * @param id 学习记录的UUID。
+   * @param id 学习记录的ID。
    * @param req 包含认证用户信息的请求对象。
    * @returns Promise<void>，表示操作完成。
    */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(
-    @Param('id', ParseUUIDPipe) id: string,
+    @Param('id') id: string,
     @Req() req: AuthenticatedRequest,
   ): Promise<void> {
     await this.studyRecordsService.remove(id, req.user.id);

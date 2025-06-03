@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/English-Assistant/review/compare/v1.1.0...v1.2.0) (2025-06-03)
+
+
+### Features
+
+* 更新镜像标签生成逻辑，确保版本号处理一致性，优化部署输出信息 ([e1130fd](https://github.com/English-Assistant/review/commit/e1130fd848c26477f8d4633b271ade2f338aa5da))
+
 ## [1.1.0](https://github.com/English-Assistant/review/compare/v1.0.0...v1.1.0) (2025-06-03)
 
 

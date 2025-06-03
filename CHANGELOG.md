@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.0](https://github.com/English-Assistant/review/compare/v1.0.0...v1.1.0) (2025-06-03)
+
+
+### Features
+
+* 更新 GitHub Actions 工作流，移除 package-name 配置，优化镜像标签生成逻辑，确保版本号处理更为严谨 ([ca1fbbb](https://github.com/English-Assistant/review/commit/ca1fbbbce7247760db1a04cf0b8e92933c4311ff))
+
 ## 1.0.0 (2025-06-03)
 
 

@@ -1,0 +1,88 @@
+name: release-please
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+      sha: ${{ steps.release.outputs.sha }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          # 使用 GitHub 默认 token，通常不需要创建额外的 PAT
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # 对于 monorepo，使用 node 类型
+          release-type: node
+          # 指定要管理的包路径（根目录）
+          package-name: study-reminder
+
+  # 部署作业，仅在创建新 release 且有 Docker Hub 凭据时运行
+  deploy:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created && secrets.DOCKER_HUB_USERNAME && secrets.DOCKER_HUB_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      # 检出代码（包含更新后的版本信息）
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.release-please.outputs.sha }}
+
+      # 设置 Node.js 和 pnpm
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      # 安装依赖
+      - name: Install dependencies
+        run: pnpm install
+
+      # 登录到 Docker Hub
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      # 构建并推送所有镜像
+      - name: Build and push all images
+        run: |
+          echo "🚀 Building all services with version: ${{ needs.release-please.outputs.tag_name }}"
+          pnpm run deploy:push
+        env:
+          DOCKER_BUILDKIT: 1
+          RELEASE_TAG: ${{ needs.release-please.outputs.tag_name }}
+
+      # 显示部署结果
+      - name: Deployment Summary
+        run: |
+          echo "✅ 部署完成！"
+          echo "🏷️  Release Tag: ${{ needs.release-please.outputs.tag_name }}"
+          echo "📦 生成的镜像:"
+          echo "   前端镜像:"
+          echo "   - boses/study-reminder-front:latest"
+          echo "   - boses/study-reminder-front:${{ needs.release-please.outputs.tag_name }}"
+          echo "   后端镜像:"
+          echo "   - boses/study-reminder-backend:latest"
+          echo "   - boses/study-reminder-backend:${{ needs.release-please.outputs.tag_name }}"
+          echo ""
+          echo "🚀 镜像已推送到 Docker Hub，使用以下命令部署："
+          echo "   docker pull boses/study-reminder-front:${{ needs.release-please.outputs.tag_name }}"
+          echo "   docker pull boses/study-reminder-backend:${{ needs.release-please.outputs.tag_name }}"

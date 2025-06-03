@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ..
+      dockerfile: docker/frontend/Dockerfile
+    container_name: study-reminder-frontend
+    ports:
+      - '80:80'
+    environment:
+      # 配置后端服务地址，nginx模板会自动替换
+      - BACKEND_URL=http://backend:3001
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ..
+      dockerfile: docker/backend/Dockerfile
+    container_name: study-reminder-backend
+    ports:
+      - '3001:3001'
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-study_user}:${POSTGRES_PASSWORD:-yoursecurepassword}@postgres_db:5432/${POSTGRES_DB:-study_reminder_db}?schema=public
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+  postgres_db:
+    image: postgres:15
+    container_name: study-reminder-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-study_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-yoursecurepassword}
+      POSTGRES_DB: ${POSTGRES_DB:-study_reminder_db}
+      TZ: Asia/Shanghai
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - study_reminder_pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-study_user} -d ${POSTGRES_DB:-study_reminder_db} -q',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  study_reminder_pgdata: {}

@@ -1,0 +1,17 @@
+{
+  "name": "study-reminder",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Study reminder application with Docker deployment automation",
+  "scripts": {
+    "deploy": "zx scripts/deploy.mjs",
+    "deploy:push": "zx scripts/deploy.mjs --push",
+    "deploy:frontend": "zx scripts/deploy.mjs --frontend-only",
+    "deploy:backend": "zx scripts/deploy.mjs --backend-only",
+    "deploy:help": "zx scripts/deploy.mjs --help"
+  },
+  "dependencies": {
+    "zx": "^8.5.4"
+  }
+}

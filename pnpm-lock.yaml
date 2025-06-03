@@ -6,6 +6,12 @@ settings:
 
 importers:
 
+  .:
+    dependencies:
+      zx:
+        specifier: ^8.5.4
+        version: 8.5.4
+
   packages/app:
     dependencies:
       '@ant-design/icons':
@@ -277,6 +283,9 @@ importers:
       prettier:
         specifier: ^3.4.2
         version: 3.5.3
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
       source-map-support:
         specifier: ^0.5.21
         version: 0.5.21
@@ -7016,6 +7025,11 @@ packages:
 
   zwitch@2.0.4:
     resolution: {integrity: sha512-bXE4cR/kVZhKZX/RjPEflHaKVhUVl85noU3v6b8apfQEc1x4A+zBxjZ4lN8LqGd6WZ3dl98pY4o717VFmoPp+A==}
+
+  zx@8.5.4:
+    resolution: {integrity: sha512-44oKea9Sa8ZnOkTnS6fRJpg3quzgnbB43nLrVfYnqE86J4sxgZMUDLezzKET/FdOAVkF4X+Alm9Bume+W+RW9Q==}
+    engines: {node: '>= 12.17.0'}
+    hasBin: true
 
 snapshots:
 
@@ -15309,3 +15323,5 @@ snapshots:
       use-sync-external-store: 1.5.0(react@19.1.0)
 
   zwitch@2.0.4: {}
+
+  zx@8.5.4: {}

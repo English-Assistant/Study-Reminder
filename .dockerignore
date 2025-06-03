@@ -1,0 +1,81 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Node modules - should be installed inside the container, not copied
+node_modules
+*/node_modules
+**/node_modules
+
+# PNPM specific files (pnpm-lock.yaml and pnpm-workspace.yaml are usually needed and copied explicitly in Dockerfile)
+# If you have a local pnpm-store, ignore it if not managed carefully for caching.
+# .pnpm-store/
+
+# Build outputs (these are generated inside the container during build)
+packages/*/dist
+packages/*/build
+dist
+build
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage
+*.lcov
+
+# nyc test coverage
+.nyc_output
+
+# Compiled binary addons (if any)
+build/Release
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Local environment variables file (NEVER commit or include .env files with secrets)
+.env
+.env.*
+!.env.example # Allow .env.example files if they are part of the repo and contain no secrets
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor directories and files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

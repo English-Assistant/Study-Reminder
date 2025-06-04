@@ -30,16 +30,6 @@ export async function getAllCoursesApi() {
 }
 
 /**
- * 根据 ID 获取特定课程
- */
-export async function getCourseByIdApi(id: string) {
-  const response = await request.get<
-    GlobalApiTypes<ReturnType<CoursesController['findOne']>>
-  >(`/courses/${id}`);
-  return response.data.data;
-}
-
-/**
  * 更新课程
  */
 export async function updateCourseApi(id: string, data: UpdateCourseDto) {

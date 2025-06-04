@@ -37,17 +37,6 @@ export class CoursesController {
     return this.coursesService.findAllByUserId(req.user.id);
   }
 
-  @Get(':courseId')
-  async findOne(
-    @Param('courseId') courseId: string,
-    @Req() req: AuthenticatedRequest,
-  ): Promise<Course | null> {
-    return this.coursesService.findOneByCourseIdAndUserId(
-      courseId,
-      req.user.id,
-    );
-  }
-
   @Patch(':courseId')
   async update(
     @Param('courseId') courseId: string,

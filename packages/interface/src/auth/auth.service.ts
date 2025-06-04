@@ -11,7 +11,6 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { Setting, ReviewRule, IntervalUnit, ReviewMode } from '@prisma/client';
-import { UpdateSettingsDto } from './dto/update-settings.dto';
 import * as _ from 'lodash';
 
 @Injectable()
@@ -197,34 +196,5 @@ export class AuthService {
       });
     }
     return settings;
-  }
-
-  async updateUserSettings(
-    userId: string,
-    dto: UpdateSettingsDto,
-  ): Promise<Setting> {
-    // 首先确保设置存在，如果不存在则创建（虽然 getUserSettings 通常会先被调用）
-    await this.getUserSettings(userId);
-
-    const updateData: Partial<Setting> = {};
-    if (dto.globalNotification !== undefined) {
-      updateData.globalNotification = dto.globalNotification;
-    }
-    if (dto.emailNotification !== undefined) {
-      updateData.emailNotification = dto.emailNotification;
-    }
-    if (dto.inAppNotification !== undefined) {
-      updateData.inAppNotification = dto.inAppNotification;
-    }
-
-    if (Object.keys(updateData).length === 0) {
-      // 如果没有提供任何可更新的字段，直接返回当前设置
-      return this.prisma.setting.findUniqueOrThrow({ where: { userId } });
-    }
-
-    return this.prisma.setting.update({
-      where: { userId },
-      data: updateData,
-    });
   }
 }

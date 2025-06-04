@@ -33,16 +33,6 @@ export async function getAllStudyRecordsApi(params?: GetStudyRecordsDto) {
 }
 
 /**
- * 根据 ID 获取特定学习记录
- */
-export async function getStudyRecordByIdApi(id: string) {
-  const response = await request.get<
-    GlobalApiTypes<ReturnType<StudyRecordsController['findOne']>>
-  >(`/study-records/${id}`);
-  return response.data.data;
-}
-
-/**
  * 更新学习记录
  */
 export async function updateStudyRecordApi(

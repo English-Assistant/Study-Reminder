@@ -95,18 +95,6 @@ export class StudyRecordsController {
   }
 
   /**
-   * 根据ID获取指定的学习记录。
-   * 需要用户认证，且只能获取用户自己的学习记录。
-   * @param id 学习记录的ID。
-   * @param req 包含认证用户信息的请求对象。
-   * @returns 学习记录对象，如果未找到则返回 null 或抛出 NotFoundException。
-   */
-  @Get(':id')
-  findOne(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
-    return this.studyRecordsService.findOne(id, req.user.id);
-  }
-
-  /**
    * 更新指定的学习记录。
    * 需要用户认证，且只能更新用户自己的学习记录。
    * @param id 学习记录的ID。

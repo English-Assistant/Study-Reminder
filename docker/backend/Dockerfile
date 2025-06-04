@@ -47,6 +47,9 @@ COPY --chown=node:node --from=builder /app/packages/interface/dist ./packages/in
 COPY --chown=node:node --from=builder /app/packages/interface/prisma ./packages/interface/prisma
 COPY --chown=node:node --from=builder /app/packages/interface/emails ./packages/interface/emails
 
+# ⚠️ 重新生成 Prisma Client
+RUN pnpm --filter @y/interface exec prisma generate
+
 # 切换到非 root 用户
 USER node
 
@@ -57,4 +60,4 @@ ENV NODE_ENV=production
 EXPOSE 3001
 
 # 直接运行编译后的 JavaScript 文件
-CMD ["node", "dist/main"]
+# CMD ["node", "dist/src/main"]

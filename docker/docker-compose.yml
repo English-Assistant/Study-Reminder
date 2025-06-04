@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   frontend:
     image: boses/study-reminder-front:latest
@@ -35,6 +33,8 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    command: >
+      sh -c "npx prisma migrate deploy && node dist/src/main"
 
   postgres_db:
     image: postgres:15

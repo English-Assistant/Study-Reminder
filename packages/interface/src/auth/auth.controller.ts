@@ -5,7 +5,6 @@ import {
   Req,
   Get,
   UseGuards,
-  Patch,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -13,7 +12,6 @@ import { AuthService } from './auth.service';
 import { LoginOrRegisterDto } from './dto/login-or-register.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthenticatedRequest } from './interfaces/authenticated-request.interface';
-import { UpdateSettingsDto } from './dto/update-settings.dto';
 import { Setting } from '@prisma/client';
 import { UserWithoutPassword } from '../users/users.service';
 
@@ -39,14 +37,5 @@ export class AuthController {
     @Req() req: AuthenticatedRequest,
   ): Promise<Setting | null> {
     return this.authService.getUserSettings(req.user.id);
-  }
-
-  @UseGuards(JwtAuthGuard)
-  @Patch('settings')
-  async updateUserSettings(
-    @Req() req: AuthenticatedRequest,
-    @Body() updateSettingsDto: UpdateSettingsDto,
-  ): Promise<Setting> {
-    return this.authService.updateUserSettings(req.user.id, updateSettingsDto);
   }
 }

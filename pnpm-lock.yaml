@@ -242,6 +242,9 @@ importers:
       prisma:
         specifier: ^6.8.2
         version: 6.8.2(typescript@5.8.3)
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
       react-email:
         specifier: 4.0.15
         version: 4.0.15(@babel/core@7.27.1)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -318,9 +321,6 @@ importers:
       prettier:
         specifier: ^3.4.2
         version: 3.5.3
-      react:
-        specifier: ^19.1.0
-        version: 19.1.0
       source-map-support:
         specifier: ^0.5.21
         version: 0.5.21

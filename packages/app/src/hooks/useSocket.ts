@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useUserStore } from '@/stores/user.store';
-import { notification } from 'antd';
+import { App } from 'antd';
 
 interface NotificationData {
   title: string;
@@ -12,6 +12,7 @@ interface NotificationData {
 
 export function useSocket() {
   const [isConnected, setIsConnected] = useState(false);
+  const { notification } = App.useApp();
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const user = useUserStore((s) => s.user);
@@ -117,7 +118,7 @@ export function useSocket() {
       // 显示浏览器通知
       showBrowserNotification(data);
     });
-  }, [token, user, showBrowserNotification]);
+  }, [token, user, notification, showBrowserNotification]);
 
   // 断开连接
   const disconnect = useCallback(() => {

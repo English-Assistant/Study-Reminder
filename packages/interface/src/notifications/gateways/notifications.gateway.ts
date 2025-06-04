@@ -19,7 +19,7 @@ interface AuthenticatedSocket extends Socket {
 
 @WebSocketGateway({
   cors: true,
-  // namespace: '/notifications', // Consider using a namespace
+  namespace: '/socket.io', // Consider using a namespace
 })
 export class NotificationsGateway
   implements OnGatewayConnection, OnGatewayDisconnect

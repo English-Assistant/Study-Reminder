@@ -157,7 +157,7 @@ export function CustomCalendar({
             // 悬停和点击状态
             {
               'hover:bg-gray-100 cursor-pointer': !isFuture,
-              'cursor-not-allowed opacity-95': isFuture && isCurrentMonth,
+              'cursor-not-allowed opacity-90': isFuture && isCurrentMonth,
             },
             // 背景色
             {

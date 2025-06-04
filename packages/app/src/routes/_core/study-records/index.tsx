@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Form, Spin, App, Tag, Badge, Space } from 'antd';
+import { Form, Spin, App, Tag, Badge, Space, Tooltip } from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import { useState, useMemo } from 'react';
@@ -124,9 +124,21 @@ function AddCourseComponent() {
     entriesForDate: CalendarDisplayEvent[],
   ) => {
     // 数据排序一下
-    const sortData = _.cloneDeep(entriesForDate).sort((f) => {
-      return isStudyRecord(f) ? -1 : 1;
+    const sortData: typeof entriesForDate = entriesForDate.filter((f) =>
+      isStudyRecord(f),
+    );
+    const newArr = _.cloneDeep(
+      entriesForDate.filter(
+        (f): f is UpcomingReviewInRecordDto => !isStudyRecord(f),
+      ),
+    );
+    newArr.sort((a, b) => {
+      return (
+        dayjs(a.expectedReviewAt).valueOf() -
+        dayjs(b.expectedReviewAt).valueOf()
+      );
     });
+    sortData.push(...newArr);
 
     return (
       <ul className="list-none m-0 p-0 flex flex-col gap-1">
@@ -142,20 +154,36 @@ function AddCourseComponent() {
                 }}
                 className="cursor-pointer"
               >
-                <Tag
-                  color={item.course?.color || 'blue'}
-                  className="w-100% m-0!"
+                <Tooltip
+                  title={
+                    <>
+                      <p>
+                        课程完成时间：
+                        {dayjs(item.studiedAt).format('YYYY-MM-DD HH:mm')}
+                      </p>
+                      <p>点击编辑</p>
+                    </>
+                  }
                 >
-                  {item.textTitle}
-                  <br />
-                  {item.course?.name}
-                </Tag>
+                  <Tag
+                    color={item.course?.color || 'blue'}
+                    className="w-100% m-0!"
+                  >
+                    {item.textTitle}
+                    <br />
+                    {item.course?.name}
+                  </Tag>
+                </Tooltip>
               </li>
             );
           }
           // 待复习的计划
           return (
-            <li key={item.expectedReviewAt.valueOf()}>
+            <li
+              key={item.expectedReviewAt.valueOf()}
+              className="cursor-default my-3px"
+              title={`复习时间：${dayjs(item.expectedReviewAt).format('YYYY-MM-DD HH:mm')}`}
+            >
               <Space align="center">
                 <Badge color={item.course.color || 'blue'} />
                 <div>{item.textTitle}</div>

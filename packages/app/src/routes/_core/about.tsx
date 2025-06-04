@@ -61,7 +61,7 @@ function AboutComponent() {
         </Link>
         <br></br>
         <Link
-          href="https://github.com/English-Assistant/review/issues"
+          href="https://github.com/English-Assistant/Study-Reminder/issues"
           style={{ fontSize: '16px' }}
           target="_blank"
         >

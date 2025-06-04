@@ -10,6 +10,7 @@ WORKDIR /app
 
 # 复制依赖相关文件
 COPY pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json ./
 COPY packages/interface/package.json ./packages/interface/
 
 # 安装依赖
@@ -35,6 +36,7 @@ WORKDIR /app
 
 # 复制依赖文件并安装生产依赖
 COPY --chown=node:node pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY --chown=node:node package.json ./
 COPY --chown=node:node packages/interface/package.json ./packages/interface/
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \

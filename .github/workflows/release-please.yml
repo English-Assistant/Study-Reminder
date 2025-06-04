@@ -88,16 +88,6 @@ jobs:
           DOCKER_BUILDKIT: 1
           RELEASE_TAG: ${{ needs.release-please.outputs.tag_name }}
 
-      # 仅构建镜像（不推送）
-      - name: Build images only
-        if: steps.check-credentials.outputs.has_credentials == 'false'
-        run: |
-          echo "🔨 Building images locally (no push)..."
-          pnpm run deploy
-        env:
-          DOCKER_BUILDKIT: 1
-          RELEASE_TAG: ${{ needs.release-please.outputs.tag_name }}
-
       # 显示部署结果
       - name: Deployment Summary
         run: |

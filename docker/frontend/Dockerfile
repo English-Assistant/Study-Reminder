@@ -10,6 +10,7 @@ WORKDIR /app
 
 # 复制依赖相关文件
 COPY pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json ./
 COPY packages/app/package.json ./packages/app/
 
 # 安装依赖

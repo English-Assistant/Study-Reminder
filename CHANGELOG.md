@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/English-Assistant/Study-Reminder/compare/v1.3.1...v1.3.2) (2025-06-04)
+
+
+### Bug Fixes
+
+* 修复 pnpm 配置不匹配问题，将 onlyBuiltDependencies 移至根配置 ([5254e42](https://github.com/English-Assistant/Study-Reminder/commit/5254e423f8406113a067a781a942e3ca03832ee0))
+
 ## [1.3.1](https://github.com/English-Assistant/review/compare/v1.3.0...v1.3.1) (2025-06-04)
 
 

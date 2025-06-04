@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/English-Assistant/review/compare/v1.2.0...v1.3.0) (2025-06-04)
+
+
+### Features
+
+* **deploy-server:** 添加部署服务器功能，支持接收 Webhook 请求并执行部署脚本，包含环境变量配置和 ESLint 规则 ([4b1b36c](https://github.com/English-Assistant/review/commit/4b1b36cedb5b30100ed90de8211072e87497c541))
+
 ## [1.2.0](https://github.com/English-Assistant/review/compare/v1.1.0...v1.2.0) (2025-06-03)
 
 

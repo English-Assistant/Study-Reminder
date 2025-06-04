@@ -6,6 +6,9 @@
     },
     {
       "path": "./packages/interface/tsconfig.json"
+    },
+    {
+      "path": "./packages/deploy-server/tsconfig.json"
     }
   ]
 }

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/English-Assistant/review/compare/v1.3.0...v1.3.1) (2025-06-04)
+
+
+### Bug Fixes
+
+* 更新 useSocket 钩子以使用 App.notification，调整样式和逻辑，优化课程记录组件，添加工具提示，更新 Docker 启动脚本 ([3f3213c](https://github.com/English-Assistant/review/commit/3f3213cbf27dc12488b3985e4071232ec4bc148d))
+
 ## [1.3.0](https://github.com/English-Assistant/review/compare/v1.2.0...v1.3.0) (2025-06-04)
 
 

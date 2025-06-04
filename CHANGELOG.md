@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/English-Assistant/Study-Reminder/compare/v1.3.2...v1.3.3) (2025-06-04)
+
+
+### Bug Fixes
+
+* 修复部署错误，删除冗余文件,补全相关文档 ([4e933ed](https://github.com/English-Assistant/Study-Reminder/commit/4e933ed8a7ff3be3e7c260bb8a04524b100a2131))
+
 ## [1.3.2](https://github.com/English-Assistant/Study-Reminder/compare/v1.3.1...v1.3.2) (2025-06-04)
 
 

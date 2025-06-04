@@ -48,7 +48,11 @@ COPY --chown=node:node --from=builder /app/packages/interface/emails ./packages/
 # 切换到非 root 用户
 USER node
 
+# 设置工作目录到应用目录
+WORKDIR /app/packages/interface
+
 ENV NODE_ENV=production
 EXPOSE 3001
 
-CMD ["pnpm", "--filter", "@y/interface", "start:prod"]
+# 直接运行编译后的 JavaScript 文件
+CMD ["node", "dist/main"]

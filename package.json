@@ -13,5 +13,11 @@
   },
   "dependencies": {
     "zx": "^8.5.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "wrap-ansi": "7.0.0",
+      "string-width": "4.1.0"
+    }
   }
 }

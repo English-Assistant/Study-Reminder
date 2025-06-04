@@ -2,15 +2,13 @@ version: '3.8'
 
 services:
   frontend:
-    build:
-      context: ..
-      dockerfile: docker/frontend/Dockerfile
-    container_name: study-reminder-frontend
+    image: boses/study-reminder-front:latest
     ports:
       - '80:80'
     environment:
       # 配置后端服务地址，nginx模板会自动替换
       - BACKEND_URL=http://backend:3001
+      - SOCKET_URL=http://backend:3001
     depends_on:
       - backend
     networks:
@@ -18,15 +16,19 @@ services:
     restart: unless-stopped
 
   backend:
-    build:
-      context: ..
-      dockerfile: docker/backend/Dockerfile
-    container_name: study-reminder-backend
-    ports:
-      - '3001:3001'
+    image: boses/study-reminder-backend:latest
     environment:
-      - NODE_ENV=production
       - DATABASE_URL=postgresql://${POSTGRES_USER:-study_user}:${POSTGRES_PASSWORD:-yoursecurepassword}@postgres_db:5432/${POSTGRES_DB:-study_reminder_db}?schema=public
+      # 邮件相关
+      - MAIL_HOST=${MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_SECURE=${MAIL_SECURE}
+      - MAIL_USER=${MAIL_USER}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - MAIL_FROM_NAME=${MAIL_FROM_NAME}
+      - MAIL_FROM_ADDRESS=${MAIL_FROM_ADDRESS}
+      - JWT_SECRET=${JWT_SECRET}
+
     depends_on:
       postgres_db:
         condition: service_healthy
@@ -36,7 +38,6 @@ services:
 
   postgres_db:
     image: postgres:15
-    container_name: study-reminder-postgres
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-study_user}

@@ -65,7 +65,7 @@ export function useSocket() {
 
     console.log('正在连接WebSocket...');
 
-    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3001', {
+    const socket = io(`/socket.io`, {
       auth: {
         token: token,
       },

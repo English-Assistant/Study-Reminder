@@ -5,5 +5,5 @@
  */
 export const jwtConstants = {
   secret: process.env.JWT_SECRET || 'yourSuperSecretKeyForDevelopmentAgain', // 请务必在生产中替换并使用环境变量
-  expiresIn: '3d', // Token 有效期，例如：60s, 10h, 7d. 建议设置为较短时间，并配合刷新令牌机制
+  expiresIn: process.env.JWT_EXPIRES_IN || '3d', // Token 有效期，例如：60s, 10h, 7d. 建议设置为较短时间，并配合刷新令牌机制
 };

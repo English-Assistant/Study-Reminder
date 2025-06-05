@@ -2,10 +2,10 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router';
 import { App, Button, Form, Input, Typography } from 'antd';
 import type { FormProps } from 'antd';
 import bg from '@/assets/images/bg.png';
-import { loginOrRegisterApi } from '@/apis/auth';
+import { loginApi } from '@/apis/auth';
 import { useRequest } from 'ahooks';
-import type { LoginOrRegisterDto } from '@y/interface/auth/dto/login-or-register.dto.ts';
 import { useUserStore } from '@/stores/user.store';
+import type { LoginDto } from '@y/interface/auth/dto/login.dto.js';
 
 const { Title, Text } = Typography;
 
@@ -18,7 +18,8 @@ function RouteComponent() {
   const { message } = App.useApp();
   const { setToken, setUser } = useUserStore((s) => s.actions);
 
-  const { loading, run } = useRequest(loginOrRegisterApi, {
+  // 用户登录
+  const { loading, run: login } = useRequest(loginApi, {
     manual: true,
     onError(e) {
       message.error(e.message);
@@ -29,13 +30,15 @@ function RouteComponent() {
       message.success('登录成功');
       setTimeout(() => {
         navigate({ to: '/dashboard' });
-      }, 2000);
+      }, 1500);
     },
   });
 
-  const onFinish: FormProps<LoginOrRegisterDto>['onFinish'] = (values) => {
-    values.email = values.email || undefined;
-    run(values);
+  const onLogin: FormProps<LoginDto>['onFinish'] = (values) => {
+    login({
+      username: values.username,
+      password: values.password,
+    });
   };
 
   return (
@@ -51,53 +54,54 @@ function RouteComponent() {
         <div>
           <div className="mb-12">
             <Title level={1}>欢迎回来</Title>
-            <Text type="secondary">登录账号以继续使用</Text>
+            <Text type="secondary">请使用账号密码登录</Text>
           </div>
-          <Form size="large" layout="vertical" onFinish={onFinish}>
-            <Form.Item<LoginOrRegisterDto>
+
+          <Form size="large" layout="vertical" onFinish={onLogin}>
+            <Form.Item<LoginDto>
               label="用户名"
               name="username"
               rules={[{ required: true, message: '请输入用户名' }]}
             >
-              <Input placeholder="请输入用户名"></Input>
+              <Input placeholder="请输入用户名" />
             </Form.Item>
-            <Form.Item<LoginOrRegisterDto>
+
+            <Form.Item<LoginDto>
               label="密码"
               name="password"
               rules={[{ required: true, message: '请输入密码' }]}
             >
-              <Input.Password placeholder="请输入密码"></Input.Password>
+              <Input.Password placeholder="请输入密码" />
             </Form.Item>
 
-            <Form.Item<LoginOrRegisterDto>
-              label="邮箱"
-              name="email"
-              rules={[
-                {
-                  type: 'email',
-                  message: '请输入正确的邮箱',
-                },
-              ]}
-              extra={
-                <div>
-                  如果用户未注册，则需要提供邮箱，如果已经注册则可以不填直接登陆。
-                </div>
-              }
-            >
-              <Input placeholder="请输入邮箱"></Input>
-            </Form.Item>
-
-            <Form.Item className="mt-12">
+            <Form.Item className="mt-8">
               <Button type="primary" htmlType="submit" loading={loading} block>
-                登录/注册
+                登录
               </Button>
             </Form.Item>
           </Form>
         </div>
         <div className="text-center">
-          <Text type="secondary">
-            未注册用户会自动注册，已注册用户会自动登陆
-          </Text>
+          <div className="mb-4">
+            <Button
+              type="link"
+              onClick={() => navigate({ to: '/forgot-password' })}
+              style={{ padding: 0 }}
+            >
+              忘记密码？
+            </Button>
+          </div>
+          <div>
+            <Text type="secondary">还没有账号？</Text>
+            <Button
+              type="link"
+              size="small"
+              onClick={() => navigate({ to: '/register' })}
+              style={{ padding: 0, height: 'auto' }}
+            >
+              立即注册
+            </Button>
+          </div>
         </div>
       </div>
     </div>

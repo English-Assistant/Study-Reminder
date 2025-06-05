@@ -99,3 +99,16 @@ model StudyRecord {
 
   @@index([userId, studiedAt]) // 用于快速查询某用户在某个时间点之后的打卡记录
 }
+
+/// 验证码表：用于邮箱验证和密码重置
+model VerificationCode {
+  id        String   @id @default(cuid()) // 验证码ID
+  email     String // 邮箱地址
+  code      String // 验证码
+  type      String // 验证码类型：register, login, reset_password
+  expiresAt DateTime // 过期时间
+  used      Boolean  @default(false) // 是否已使用
+  createdAt DateTime @default(now()) // 创建时间
+
+  @@index([email, type]) // 用于快速查询某邮箱的验证码
+}

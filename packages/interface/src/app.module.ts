@@ -18,6 +18,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { UpcomingReviewsModule } from './upcoming-reviews/upcoming-reviews.module';
 import { SettingsModule } from './settings/settings.module';
 import { MailModule } from './mail/mail.module';
+import { VerificationCodeModule } from './verification-code/verification-code.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { MailModule } from './mail/mail.module';
     UpcomingReviewsModule,
     SettingsModule,
     MailModule,
+    VerificationCodeModule,
   ],
   controllers: [AppController],
   providers: [AppService],

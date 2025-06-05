@@ -11,7 +11,9 @@
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
+import { Route as RegisterImport } from './routes/register'
 import { Route as LoginImport } from './routes/login'
+import { Route as ForgotPasswordImport } from './routes/forgot-password'
 import { Route as CoreImport } from './routes/_core'
 import { Route as IndexImport } from './routes/index'
 import { Route as CoreSetUpImport } from './routes/_core/set-up'
@@ -22,9 +24,21 @@ import { Route as CoreCoursesIndexImport } from './routes/_core/courses/index'
 
 // Create/Update Routes
 
+const RegisterRoute = RegisterImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRoute,
+} as any)
+
 const LoginRoute = LoginImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const ForgotPasswordRoute = ForgotPasswordImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -87,11 +101,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CoreImport
       parentRoute: typeof rootRoute
     }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordImport
+      parentRoute: typeof rootRoute
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginImport
+      parentRoute: typeof rootRoute
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterImport
       parentRoute: typeof rootRoute
     }
     '/_core/about': {
@@ -155,7 +183,9 @@ const CoreRouteWithChildren = CoreRoute._addFileChildren(CoreRouteChildren)
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '': typeof CoreRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/about': typeof CoreAboutRoute
   '/set-up': typeof CoreSetUpRoute
   '/courses': typeof CoreCoursesIndexRoute
@@ -166,7 +196,9 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '': typeof CoreRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/about': typeof CoreAboutRoute
   '/set-up': typeof CoreSetUpRoute
   '/courses': typeof CoreCoursesIndexRoute
@@ -178,7 +210,9 @@ export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
   '/_core': typeof CoreRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/register': typeof RegisterRoute
   '/_core/about': typeof CoreAboutRoute
   '/_core/set-up': typeof CoreSetUpRoute
   '/_core/courses/': typeof CoreCoursesIndexRoute
@@ -191,7 +225,9 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | ''
+    | '/forgot-password'
     | '/login'
+    | '/register'
     | '/about'
     | '/set-up'
     | '/courses'
@@ -201,7 +237,9 @@ export interface FileRouteTypes {
   to:
     | '/'
     | ''
+    | '/forgot-password'
     | '/login'
+    | '/register'
     | '/about'
     | '/set-up'
     | '/courses'
@@ -211,7 +249,9 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_core'
+    | '/forgot-password'
     | '/login'
+    | '/register'
     | '/_core/about'
     | '/_core/set-up'
     | '/_core/courses/'
@@ -223,13 +263,17 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CoreRoute: typeof CoreRouteWithChildren
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  RegisterRoute: typeof RegisterRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CoreRoute: CoreRouteWithChildren,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  RegisterRoute: RegisterRoute,
 }
 
 export const routeTree = rootRoute
@@ -244,7 +288,9 @@ export const routeTree = rootRoute
       "children": [
         "/",
         "/_core",
-        "/login"
+        "/forgot-password",
+        "/login",
+        "/register"
       ]
     },
     "/": {
@@ -260,8 +306,14 @@ export const routeTree = rootRoute
         "/_core/study-records/"
       ]
     },
+    "/forgot-password": {
+      "filePath": "forgot-password.tsx"
+    },
     "/login": {
       "filePath": "login.tsx"
+    },
+    "/register": {
+      "filePath": "register.tsx"
     },
     "/_core/about": {
       "filePath": "_core/about.tsx",

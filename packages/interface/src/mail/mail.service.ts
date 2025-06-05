@@ -58,4 +58,54 @@ export class MailService {
       template,
     });
   }
+
+  async sendVerificationCodeEmail(
+    email: string,
+    userName: string,
+    verificationCode: string,
+    expirationTime?: number,
+    type?: 'register',
+  ): Promise<void> {
+    // 动态导入邮件模板
+    const { VerificationCodeEmail } = await import(
+      '../../emails/verification-code'
+    );
+
+    const template = React.createElement(VerificationCodeEmail, {
+      userName,
+      verificationCode,
+      expirationTime,
+      type,
+    });
+
+    await this.sendMail({
+      email,
+      subject: `Study Reminder 注册验证码: ${verificationCode}`,
+      template,
+    });
+  }
+
+  async sendResetPasswordCodeEmail(
+    email: string,
+    userName: string,
+    verificationCode: string,
+    expirationTime?: number,
+  ): Promise<void> {
+    // 动态导入重置密码邮件模板
+    const { ResetPasswordCodeEmail } = await import(
+      '../../emails/reset-password-code'
+    );
+
+    const template = React.createElement(ResetPasswordCodeEmail, {
+      userName,
+      verificationCode,
+      expirationTime,
+    });
+
+    await this.sendMail({
+      email,
+      subject: `【重要】Study Reminder 密码重置验证码: ${verificationCode}`,
+      template,
+    });
+  }
 }

@@ -3,17 +3,50 @@ import type { GlobalApiTypes } from '@/types/api';
 
 // Backend DTOs, Controller, and Prisma types
 import type { AuthController } from '@y/interface/auth/auth.controller.ts';
-import type { LoginOrRegisterDto } from '@y/interface/auth/dto/login-or-register.dto.ts';
+import type { RegisterDto } from '@y/interface/auth/dto/register.dto.ts';
+import type { LoginDto } from '@y/interface/auth/dto/login.dto.ts';
+import type { ForgotPasswordDto } from '@y/interface/auth/dto/forgot-password.dto.ts';
+import type { SendVerificationCodeDto } from '@y/interface/auth/dto/send-verification-code.dto.ts';
 
 // --- API Functions ---
 
 /**
- * 用户登录或注册
+ * 发送验证码
  */
-export async function loginOrRegisterApi(data: LoginOrRegisterDto) {
+export async function sendVerificationCodeApi(data: SendVerificationCodeDto) {
   const response = await request.post<
-    GlobalApiTypes<ReturnType<AuthController['loginOrRegister']>> // Explicitly using our defined response type
-  >('/auth/login-or-register', data);
+    GlobalApiTypes<ReturnType<AuthController['sendVerificationCode']>>
+  >('/auth/send-verification-code', data);
+  return response.data.data;
+}
+
+/**
+ * 用户注册
+ */
+export async function registerApi(data: RegisterDto) {
+  const response = await request.post<
+    GlobalApiTypes<ReturnType<AuthController['register']>>
+  >('/auth/register', data);
+  return response.data.data;
+}
+
+/**
+ * 用户登录
+ */
+export async function loginApi(data: LoginDto) {
+  const response = await request.post<
+    GlobalApiTypes<ReturnType<AuthController['login']>>
+  >('/auth/login', data);
+  return response.data.data;
+}
+
+/**
+ * 重置密码
+ */
+export async function forgotPasswordApi(data: ForgotPasswordDto) {
+  const response = await request.post<
+    GlobalApiTypes<ReturnType<AuthController['forgotPassword']>>
+  >('/auth/forgot-password', data);
   return response.data.data;
 }
 

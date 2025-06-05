@@ -12,6 +12,10 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { Setting, ReviewRule, IntervalUnit, ReviewMode } from '@prisma/client';
 import * as _ from 'lodash';
+import {
+  VerificationCodeService,
+  VerificationCodeType,
+} from '../verification-code/verification-code.service';
 
 @Injectable()
 export class AuthService {
@@ -21,164 +25,8 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private prisma: PrismaService,
+    private verificationCodeService: VerificationCodeService,
   ) {}
-
-  /**
-   * 用户登录或注册。
-   * 如果用户存在，则验证密码并登录；如果用户不存在，则自动创建新用户并登录。
-   * @param username 用户名
-   * @param passwordRaw 原始密码
-   * @param email 邮箱
-   * @returns 包含 access_token 和用户信息的对象
-   */
-  async loginOrRegister(
-    username: string,
-    passwordRaw: string,
-    email?: string,
-  ): Promise<{ access_token: string; user: UserWithoutPassword }> {
-    const userRecord = await this.usersService.findOneByUsername(username);
-
-    if (userRecord) {
-      // 用户存在，验证密码
-      const isValidPassword = await bcrypt.compare(
-        passwordRaw,
-        userRecord.password,
-      );
-      if (!isValidPassword) {
-        this.logger.warn(`登录尝试失败，用户: ${username} - 密码无效`);
-        throw new UnauthorizedException('用户名或密码错误');
-      }
-      // 如果用户存在，并且用户提供了 email，则校验 email
-      if (email && userRecord.email !== email) {
-        this.logger.warn(
-          `登录尝试失败，用户: ${username} - 提供的邮箱与记录不符。`,
-        );
-        throw new ConflictException('提供的邮箱与该用户记录不符。');
-      }
-      const userResult = _.omit(userRecord, ['password']);
-      const payload = { username: userResult.username, sub: userResult.id };
-      return {
-        access_token: await this.jwtService.signAsync(payload),
-        user: userResult,
-      };
-    } else {
-      // 用户不存在，尝试注册
-      // 注册时 email 是必需的
-      if (!email) {
-        this.logger.warn(`注册尝试失败，用户: ${username} - 未提供邮箱。`);
-        throw new BadRequestException('注册新用户时，邮箱是必填项。');
-      }
-      this.logger.log(`用户 ${username} 未找到，使用邮箱 ${email} 尝试注册。`);
-      try {
-        // 检查邮箱是否已被其他用户使用
-        const existingUserByEmail = await this.prisma.user.findUnique({
-          where: { email },
-        });
-        if (existingUserByEmail) {
-          throw new ConflictException('此邮箱已被其他用户注册。');
-        }
-
-        const newUser = await this.usersService.createUser(
-          username,
-          passwordRaw,
-          email,
-        );
-        // 自动为新用户创建默认设置
-        await this.getUserSettings(newUser.id);
-
-        // 创建默认复习规则
-        const defaultRulesData: Omit<ReviewRule, 'id' | 'note'>[] = [
-          {
-            userId: newUser.id,
-            value: 1,
-            unit: IntervalUnit.HOUR,
-            mode: ReviewMode.ONCE,
-          },
-          {
-            userId: newUser.id,
-            value: 1,
-            unit: IntervalUnit.DAY,
-            mode: ReviewMode.ONCE,
-          },
-          {
-            userId: newUser.id,
-            value: 2,
-            unit: IntervalUnit.DAY,
-            mode: ReviewMode.ONCE,
-          },
-          {
-            userId: newUser.id,
-            value: 3,
-            unit: IntervalUnit.DAY,
-            mode: ReviewMode.ONCE,
-          },
-          {
-            userId: newUser.id,
-            value: 7,
-            unit: IntervalUnit.DAY,
-            mode: ReviewMode.ONCE,
-          },
-          {
-            userId: newUser.id,
-            value: 30,
-            unit: IntervalUnit.DAY,
-            mode: ReviewMode.ONCE,
-          },
-          {
-            userId: newUser.id,
-            value: 60,
-            unit: IntervalUnit.DAY,
-            mode: ReviewMode.ONCE,
-          },
-          {
-            userId: newUser.id,
-            value: 90,
-            unit: IntervalUnit.DAY,
-            mode: ReviewMode.ONCE,
-          },
-        ];
-        try {
-          await this.prisma.reviewRule.createMany({ data: defaultRulesData });
-          this.logger.log(`为用户 ${newUser.id} 创建了默认复习规则。`);
-        } catch (ruleError) {
-          this.logger.error(
-            `为用户 ${newUser.id} 创建默认复习规则失败:`,
-            ruleError,
-          );
-          // 根据策略，这里可以选择是否因为规则创建失败而回滚用户创建或抛出错误
-          // 当前选择仅记录错误，不影响用户注册流程
-        }
-
-        const payload = { username: newUser.username, sub: newUser.id };
-        return {
-          access_token: await this.jwtService.signAsync(payload),
-          user: newUser,
-        };
-      } catch (error) {
-        if (error instanceof ConflictException) throw error; // 重抛已知的 ConflictException
-        this.logger.error(
-          `用户自动注册过程中发生错误: ${username}, ${email}`,
-          error instanceof Error ? error.stack : String(error),
-        );
-        // Prisma P2002 错误码表示唯一约束失败 (可能是 username 或 email)
-        if (
-          error &&
-          typeof error === 'object' &&
-          'code' in error &&
-          (error as { code?: string }).code === 'P2002'
-        ) {
-          const target = error.meta?.target;
-          if (target && target.includes('username')) {
-            throw new ConflictException('用户名已存在。');
-          }
-          if (target && target.includes('email')) {
-            throw new ConflictException('此邮箱已被其他用户注册。');
-          }
-        }
-        throw new UnauthorizedException('注册或登录过程中发生内部错误。');
-      }
-    }
-  }
 
   async getUserSettings(userId: string): Promise<Setting> {
     let settings = await this.prisma.setting.findUnique({
@@ -196,5 +44,211 @@ export class AuthService {
       });
     }
     return settings;
+  }
+
+  /**
+   * 用户登录（仅需账号+密码）
+   */
+  async login(
+    username: string,
+    password: string,
+  ): Promise<{ access_token: string; user: UserWithoutPassword }> {
+    const userRecord = await this.usersService.findOneByUsername(username);
+    if (!userRecord) {
+      this.logger.warn(`登录尝试失败，用户: ${username} - 用户不存在`);
+      throw new UnauthorizedException('用户名或密码错误');
+    }
+
+    // 验证密码
+    const isValidPassword = await bcrypt.compare(password, userRecord.password);
+    if (!isValidPassword) {
+      this.logger.warn(`登录尝试失败，用户: ${username} - 密码无效`);
+      throw new UnauthorizedException('用户名或密码错误');
+    }
+
+    const userResult = _.omit(userRecord, ['password']);
+    const payload = { username: userResult.username, sub: userResult.id };
+
+    this.logger.log(`用户 ${username} 登录成功`);
+    return {
+      access_token: await this.jwtService.signAsync(payload),
+      user: userResult,
+    };
+  }
+
+  /**
+   * 用户注册（需要验证码）
+   */
+  async register(
+    username: string,
+    password: string,
+    email: string,
+    verificationCode: string,
+  ): Promise<{ access_token: string; user: UserWithoutPassword }> {
+    // 检查用户名是否已存在
+    const existingUser = await this.usersService.findOneByUsername(username);
+    if (existingUser) {
+      throw new ConflictException('用户名已存在');
+    }
+
+    // 检查邮箱是否已被使用
+    const existingUserByEmail = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    if (existingUserByEmail) {
+      throw new ConflictException('此邮箱已被其他用户注册');
+    }
+
+    // 验证验证码
+    await this.verificationCodeService.validateAndConsume(
+      email,
+      verificationCode,
+      VerificationCodeType.REGISTER,
+    );
+
+    try {
+      // 创建新用户
+      const newUser = await this.usersService.createUser(
+        username,
+        password,
+        email,
+      );
+
+      // 自动为新用户创建默认设置
+      await this.getUserSettings(newUser.id);
+
+      // 创建默认复习规则
+      await this.createDefaultReviewRules(newUser.id);
+
+      const payload = { username: newUser.username, sub: newUser.id };
+
+      this.logger.log(`用户 ${username} 注册成功`);
+      return {
+        access_token: await this.jwtService.signAsync(payload),
+        user: newUser,
+      };
+    } catch (error) {
+      this.logger.error(
+        `用户注册过程中发生错误: ${username}, ${email}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+
+      // 处理 Prisma 唯一约束错误
+      if (
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        (error as { code?: string }).code === 'P2002'
+      ) {
+        const target = error.meta?.target;
+        if (target && target.includes('username')) {
+          throw new ConflictException('用户名已存在');
+        }
+        if (target && target.includes('email')) {
+          throw new ConflictException('此邮箱已被其他用户注册');
+        }
+      }
+      throw new BadRequestException('注册过程中发生内部错误');
+    }
+  }
+
+  /**
+   * 重置密码（需要验证码）
+   */
+  async resetPassword(
+    email: string,
+    newPassword: string,
+    verificationCode: string,
+  ): Promise<{ message: string }> {
+    // 查找用户
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    if (!user) {
+      throw new BadRequestException('该邮箱未注册');
+    }
+
+    // 验证验证码
+    await this.verificationCodeService.validateAndConsume(
+      email,
+      verificationCode,
+      VerificationCodeType.RESET_PASSWORD,
+    );
+
+    // 更新密码
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { email },
+      data: { password: hashedPassword },
+    });
+
+    this.logger.log(`用户 ${email} 密码重置成功`);
+    return { message: '密码重置成功' };
+  }
+
+  /**
+   * 发送验证码
+   */
+  async sendVerificationCode(
+    email: string,
+    type: VerificationCodeType,
+    username?: string,
+  ): Promise<{ message: string }> {
+    // 检查发送频率限制
+    const canSend = await this.verificationCodeService.canSendCode(email, type);
+    if (!canSend) {
+      throw new BadRequestException('发送过于频繁，请稍后再试');
+    }
+
+    // 根据类型进行额外验证
+    if (type === VerificationCodeType.REGISTER) {
+      // 注册验证码：检查邮箱是否已被使用
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email },
+      });
+      if (existingUser) {
+        throw new ConflictException('此邮箱已被注册');
+      }
+    } else if (type === VerificationCodeType.RESET_PASSWORD) {
+      // 重置密码验证码：检查邮箱是否存在
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email },
+      });
+      if (!existingUser) {
+        throw new BadRequestException('该邮箱未注册');
+      }
+      username = existingUser.username;
+    }
+
+    await this.verificationCodeService.generateAndSendCode(
+      email,
+      type,
+      username,
+    );
+
+    return { message: '验证码已发送' };
+  }
+
+  /**
+   * 创建默认复习规则
+   */
+  private async createDefaultReviewRules(userId: string): Promise<void> {
+    const defaultRulesData: Omit<ReviewRule, 'id' | 'note'>[] = [
+      { userId, value: 1, unit: IntervalUnit.HOUR, mode: ReviewMode.ONCE },
+      { userId, value: 1, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
+      { userId, value: 2, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
+      { userId, value: 3, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
+      { userId, value: 7, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
+      { userId, value: 30, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
+      { userId, value: 60, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
+      { userId, value: 90, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
+    ];
+
+    try {
+      await this.prisma.reviewRule.createMany({ data: defaultRulesData });
+      this.logger.log(`为用户 ${userId} 创建了默认复习规则`);
+    } catch (error) {
+      this.logger.error(`为用户 ${userId} 创建默认复习规则失败:`, error);
+    }
   }
 }

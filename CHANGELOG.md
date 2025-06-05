@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.4](https://github.com/English-Assistant/Study-Reminder/compare/v1.3.3...v1.3.4) (2025-06-05)
+
+
+### Performance Improvements
+
+* 拆分模块和优化打包图片尺寸 ([9523fb5](https://github.com/English-Assistant/Study-Reminder/commit/9523fb53505c5abaee732b7116cacc3dde16ff3a)), closes [#10](https://github.com/English-Assistant/Study-Reminder/issues/10)
+
 ## [1.3.3](https://github.com/English-Assistant/Study-Reminder/compare/v1.3.2...v1.3.3) (2025-06-04)
 
 

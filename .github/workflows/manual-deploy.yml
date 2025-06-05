@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag_to_deploy:
-        description: 'The git tag to deploy (e.g., v1.2.3). This will be used for Docker image tagging and checkout.'
+        description: '要部署的 git 标签（例如：1.2.3）。这将用于 Docker 镜像标记和代码检出。'
         required: true
         type: string
 
@@ -93,7 +93,7 @@ jobs:
           fi
 
       - name: Trigger Deploy
-        if: steps.check-credentials.outputs.has_credentials == 'true' && secrets.DEPLOY_SERVER_URL != '' && secrets.DEPLOY_TOKEN != ''
+        if: ${{ steps.check-credentials.outputs.has_credentials == 'true' && secrets.DEPLOY_SERVER_URL != '' && secrets.DEPLOY_TOKEN != '' }}
         run: |
           echo "Attempting to trigger deployment for tag: ${{ steps.version_prep.outputs.VERSION_NO_V }}"
           curl -X POST "${{ secrets.DEPLOY_SERVER_URL }}" \

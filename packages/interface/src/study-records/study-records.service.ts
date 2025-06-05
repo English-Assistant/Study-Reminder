@@ -342,11 +342,15 @@ export class StudyRecordsService {
       [IntervalUnit.HOUR]: '小时',
       [IntervalUnit.DAY]: '天',
     };
-    const modeMap = {
-      [ReviewMode.ONCE]: '一次性',
-      [ReviewMode.RECURRING]: '周期性',
-    };
-    return `${rule.value} ${unitMap[rule.unit]}后 (${modeMap[rule.mode]}) - ${rule.note || '无备注'}`;
+
+    const baseStr = [
+      rule.value,
+      `${unitMap[rule.unit]}后`,
+      rule.mode === ReviewMode.ONCE ? null : `周期性`,
+    ]
+      .filter((f) => f)
+      .join(' ');
+    return [baseStr, rule.note || null].filter((f) => f).join(' - ');
   }
 
   async getStudyRecordsAndReviewsByMonth(
@@ -360,6 +364,11 @@ export class StudyRecordsService {
 
     const monthStart = dayjs(`${year}-${month}-01`).startOf('month');
     const monthEnd = monthStart.endOf('month');
+
+    // 扩展复习计划计算范围：前后一个月
+    // 这样可以包含日历界面显示的相邻月份的复习提醒
+    const reviewRangeStart = monthStart.subtract(1, 'month').startOf('month');
+    const reviewRangeEnd = monthEnd.add(1, 'month').endOf('month');
 
     const studyRecordSelectScope = {
       id: true,
@@ -379,11 +388,11 @@ export class StudyRecordsService {
       },
     };
 
-    // 获取当月创建的学习记录
+    // 获取当月学习的记录（按 studiedAt 过滤）
     const recordsInMonthModels = await this.prisma.studyRecord.findMany({
       where: {
         userId,
-        createdAt: {
+        studiedAt: {
           gte: monthStart.toDate(),
           lte: monthEnd.toDate(),
         },
@@ -410,18 +419,59 @@ export class StudyRecordsService {
       select: studyRecordSelectScope,
     });
 
+    // 找出所有在扩展时间范围内有复习计划的学习记录
+    const recordsWithReviewsInRange = new Set<string>();
+
+    allStudyRecordsWithCourse.forEach((record) => {
+      if (!record.course) return;
+
+      reviewRules.forEach((rule) => {
+        const reviewItems = this.calculateReviewsForRule(
+          {
+            id: record.id,
+            textTitle: record.textTitle,
+            studiedAt: record.studiedAt,
+            course: record.course,
+          },
+          rule,
+          reviewRangeStart,
+          reviewRangeEnd,
+        );
+
+        // 如果这个记录在扩展范围内有复习计划，标记它
+        if (reviewItems.length > 0) {
+          recordsWithReviewsInRange.add(record.id);
+        }
+      });
+    });
+
+    // 合并当月学习记录和有复习计划的记录
+    const allRelevantRecords = new Map<string, any>();
+
+    // 添加当月学习记录
+    recordsInMonthModels.forEach((record) => {
+      allRelevantRecords.set(record.id, record);
+    });
+
+    // 添加有复习计划的记录
+    allStudyRecordsWithCourse.forEach((record) => {
+      if (recordsWithReviewsInRange.has(record.id)) {
+        allRelevantRecords.set(record.id, record);
+      }
+    });
+
     // 初始化结果映射
     const recordsInMonthMap = new Map<string, StudyRecordWithReviewsDto>();
-    recordsInMonthModels.forEach((record) => {
+    Array.from(allRelevantRecords.values()).forEach((record) => {
       recordsInMonthMap.set(record.id, this.mapToDto(record));
     });
 
-    // 计算复习计划
+    // 计算复习计划 - 使用扩展的时间范围
     this.calculateReviewsForRecords(
       allStudyRecordsWithCourse,
       reviewRules,
-      monthStart,
-      monthEnd,
+      reviewRangeStart, // 前一个月开始
+      reviewRangeEnd, // 后一个月结束
       recordsInMonthMap,
     );
 

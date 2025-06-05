@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.3.5...v1.4.0) (2025-06-05)
+
+
+### Features
+
+* 新增忘记密码，拆分登录/注册页面 ([2c239d4](https://github.com/English-Assistant/Study-Reminder/commit/2c239d495172bafb77d269f3730af9aef24a247a))
+
 ## [1.3.5](https://github.com/English-Assistant/Study-Reminder/compare/v1.3.4...v1.3.5) (2025-06-05)
 
 

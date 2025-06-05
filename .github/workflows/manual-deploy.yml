@@ -93,10 +93,18 @@ jobs:
           fi
 
       - name: Trigger Deploy
-        if: ${{ steps.check-credentials.outputs.has_credentials == 'true' && secrets.DEPLOY_SERVER_URL != '' && secrets.DEPLOY_TOKEN != '' }}
+        if: steps.check-credentials.outputs.has_credentials == 'true'
         run: |
-          echo "Attempting to trigger deployment for tag: ${{ steps.version_prep.outputs.VERSION_NO_V }}"
-          curl -X POST "${{ secrets.DEPLOY_SERVER_URL }}" \
-            -H "Authorization: Bearer ${{ secrets.DEPLOY_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"tag\": \"${{ steps.version_prep.outputs.VERSION_NO_V }}\"}"
+          if [[ -n "${{ secrets.DEPLOY_SERVER_URL }}" && -n "${{ secrets.DEPLOY_TOKEN }}" ]]; then
+            echo "🚀 开始触发部署..."
+            echo "Attempting to trigger deployment for tag: ${{ steps.version_prep.outputs.VERSION_NO_V }}"
+            curl -X POST "${{ secrets.DEPLOY_SERVER_URL }}" \
+              -H "Authorization: Bearer ${{ secrets.DEPLOY_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"tag\": \"${{ steps.version_prep.outputs.VERSION_NO_V }}\"}"
+          else
+            echo "⚠️ 未配置部署服务器信息，跳过远程部署步骤"
+            echo "📋 请在 GitHub Secrets 中设置："
+            echo "   - DEPLOY_SERVER_URL"
+            echo "   - DEPLOY_TOKEN"
+          fi

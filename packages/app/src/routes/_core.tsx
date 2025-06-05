@@ -1,6 +1,7 @@
 import {
   createFileRoute,
   Outlet,
+  redirect,
   Link as RouterLink,
   useNavigate,
   useRouterState,
@@ -72,6 +73,13 @@ const menuItems: MenuItem[] = [
 
 export const Route = createFileRoute('/_core')({
   component: CoreLayoutComponent,
+  // 拦截，如果没有token跳转走
+  loader: async () => {
+    const token = useUserStore.getState().accessToken;
+    if (!token) {
+      return redirect({ to: '/login' });
+    }
+  },
 });
 
 function CoreLayoutComponent() {

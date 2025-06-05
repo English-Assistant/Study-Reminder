@@ -20,7 +20,11 @@
       "string-width": "4.1.0"
     },
     "onlyBuiltDependencies": [
-      "esbuild"
+      "cwebp-bin",
+      "gifsicle",
+      "mozjpeg",
+      "pngquant-bin",
+      "sharp"
     ]
   }
 }

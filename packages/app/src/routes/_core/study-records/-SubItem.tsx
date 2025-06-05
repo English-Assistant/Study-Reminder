@@ -77,7 +77,11 @@ export const SubItem: FC<Props> = ({ entriesForDate, handleOpenEditModal }) => {
             className="cursor-default"
             title={`复习时间：${dayjs(item.expectedReviewAt).format('YYYY-MM-DD HH:mm')}`}
           >
-            <Tag bordered={false} color="blue" className="w-full m-0! px-2">
+            <Tag
+              bordered={false}
+              color="rgba(125, 108, 226, 0.85)"
+              className="w-full m-0! px-2"
+            >
               <div className="flex flex-justify-between">
                 <Space align="center">
                   <Badge color={item.course.color || 'blue'} />

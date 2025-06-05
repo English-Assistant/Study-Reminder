@@ -20,7 +20,7 @@ interface EntryFormValues {
 
 // import type { ManualReviewEntryDto } from '@y/interface/manual-review-entries-module/dto/manual-review-entry.dto.ts'; // 暂时注释
 import { useRequest } from 'ahooks';
-import { SubItem } from './-subItem';
+import { SubItem } from './-SubItem';
 
 export type CalendarDisplayEvent =
   | Omit<StudyRecordWithReviewsDto, 'upcomingReviewsInMonth'>

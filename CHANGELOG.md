@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.5](https://github.com/English-Assistant/Study-Reminder/compare/v1.3.4...v1.3.5) (2025-06-05)
+
+
+### Bug Fixes
+
+* 修复月份丢失数据以及拓展日历前后展示的范围 ([5899b8a](https://github.com/English-Assistant/Study-Reminder/commit/5899b8a1a7f68039cb179108d75bbd3f212d0ab6)), closes [#16](https://github.com/English-Assistant/Study-Reminder/issues/16)
+
+
+### Performance Improvements
+
+* 拆分日历组件，对展示高度、展示信息以及弹窗部分优化 ([7a1476c](https://github.com/English-Assistant/Study-Reminder/commit/7a1476c8b775db54d7fc8124dc5907f4584fbf05))
+
 ## [1.3.4](https://github.com/English-Assistant/Study-Reminder/compare/v1.3.3...v1.3.4) (2025-06-05)
 
 

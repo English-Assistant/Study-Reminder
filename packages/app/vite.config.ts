@@ -5,7 +5,7 @@ import svgr from 'vite-plugin-svgr';
 import { TanStackRouterVite } from '@tanstack/router-plugin/vite';
 import tsconfigPaths from 'vite-tsconfig-paths';
 import { codeInspectorPlugin } from 'code-inspector-plugin';
-import imagemin from 'unplugin-imagemin/vite';
+// import imagemin from 'unplugin-imagemin/vite';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -25,27 +25,13 @@ export default defineConfig({
       bundler: 'vite',
     }),
 
-    imagemin({
-      compress: {
-        jpg: {
-          quality: 80,
-        },
-        jpeg: {
-          quality: 80,
-        },
-        png: {
-          quality: 80,
-        },
-        webp: {
-          quality: 80,
-        },
-      },
-      conversion: [
-        { from: 'jpeg', to: 'webp' },
-        { from: 'png', to: 'webp' },
-        { from: 'JPG', to: 'jpeg' },
-      ],
-    } as never),
+    // imagemin({
+    //   conversion: [
+    //     { from: 'jpeg', to: 'webp' },
+    //     { from: 'png', to: 'webp' },
+    //     { from: 'JPG', to: 'jpeg' },
+    //   ],
+    // }),
   ],
   build: {
     target: 'es2018',

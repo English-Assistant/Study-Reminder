@@ -20,6 +20,7 @@
       "string-width": "4.1.0"
     },
     "onlyBuiltDependencies": [
+      "@nestjs/core",
       "sharp"
     ]
   }

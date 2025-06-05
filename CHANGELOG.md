@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.4.0...v1.5.0) (2025-06-05)
+
+
+### Features
+
+* 手动触发更新 ([cfdba53](https://github.com/English-Assistant/Study-Reminder/commit/cfdba534cc1d6a42d7682a826edcb29747b3e091))
+
 ## [1.4.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.3.5...v1.4.0) (2025-06-05)
 
 

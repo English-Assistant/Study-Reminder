@@ -28,6 +28,7 @@ import { getAllCoursesApi } from '@/apis/courses';
 import type { Course as PrismaCourse } from '@y/interface/common/prisma.type.ts';
 import dayjs from 'dayjs';
 import { useEffect } from 'react';
+import { useReviewMemoryStore } from '@/stores/review.memory';
 
 interface EntryFormValues {
   title: string;
@@ -58,6 +59,13 @@ export function EntryFormModal({
   const { message } = App.useApp();
   const isEditMode = !!editingItem;
 
+  const setSelectedCourse = useReviewMemoryStore(
+    (state) => state.setSelectedCourse,
+  );
+  const selectedCourse = useReviewMemoryStore((state) =>
+    state.getSelectedCourse(),
+  );
+
   const { data: coursesData, loading: loadingCourses } = useRequest<
     PrismaCourse[],
     []
@@ -71,8 +79,10 @@ export function EntryFormModal({
     createStudyRecordApi,
     {
       manual: true,
-      onSuccess: () => {
+      onSuccess: (_v, [p]) => {
         message.success('学习记录已添加!');
+        // 记忆一下用户的选择
+        setSelectedCourse(p.courseId);
         form.resetFields();
         onSuccess();
       },
@@ -123,10 +133,11 @@ export function EntryFormModal({
       } else {
         form.setFieldsValue({
           startTime: dayjs(),
+          courseId: selectedCourse,
         });
       }
     }
-  }, [editingItem, form, isVisible, isEditMode]);
+  }, [editingItem, form, isVisible, isEditMode, selectedCourse]);
 
   const handleOk = async () => {
     const values = await form.validateFields();

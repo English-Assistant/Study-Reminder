@@ -10,19 +10,13 @@ import type {
   StudyRecordWithReviewsDto,
   UpcomingReviewInRecordDto,
 } from '@y/interface/study-records/dto/study-record-with-reviews.dto.ts'; // 导入所需类型
+import { isStudyRecord } from './-utils';
 
 // 从父组件导入 CalendarDisplayEvent 类型，或者在此重新定义
 // 假设父组件会导出它，或者我们在这里定义一个匹配的本地类型
 type CalendarDisplayEvent =
   | Omit<StudyRecordWithReviewsDto, 'upcomingReviewsInMonth'>
   | UpcomingReviewInRecordDto;
-
-// 类型守卫函数
-function isStudyRecord(
-  item: CalendarDisplayEvent,
-): item is Omit<StudyRecordWithReviewsDto, 'upcomingReviewsInMonth'> {
-  return 'studiedAt' in item && 'courseId' in item && 'textTitle' in item;
-}
 
 function isUpcomingReview(
   item: CalendarDisplayEvent,

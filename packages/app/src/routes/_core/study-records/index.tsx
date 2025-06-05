@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Form, Spin, App, Tag, Badge, Space, Tooltip } from 'antd';
+import { Form, Spin, App } from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
 import { useState, useMemo } from 'react';
@@ -10,7 +10,6 @@ import type {
   StudyRecordWithReviewsDto,
   UpcomingReviewInRecordDto,
 } from '@y/interface/study-records/dto/study-record-with-reviews.dto.ts';
-import * as _ from 'lodash-es';
 
 interface EntryFormValues {
   title: string;
@@ -21,21 +20,15 @@ interface EntryFormValues {
 
 // import type { ManualReviewEntryDto } from '@y/interface/manual-review-entries-module/dto/manual-review-entry.dto.ts'; // 暂时注释
 import { useRequest } from 'ahooks';
+import { SubItem } from './-subItem';
 
-type CalendarDisplayEvent =
+export type CalendarDisplayEvent =
   | Omit<StudyRecordWithReviewsDto, 'upcomingReviewsInMonth'>
   | UpcomingReviewInRecordDto;
 
 export const Route = createFileRoute('/_core/study-records/')({
   component: AddCourseComponent,
 });
-
-// 类型守卫函数
-function isStudyRecord(
-  item: CalendarDisplayEvent,
-): item is Omit<StudyRecordWithReviewsDto, 'upcomingReviewsInMonth'> {
-  return 'studiedAt' in item && 'courseId' in item && 'textTitle' in item;
-}
 
 function AddCourseComponent() {
   const { message } = App.useApp();
@@ -123,76 +116,12 @@ function AddCourseComponent() {
     _date: Dayjs,
     entriesForDate: CalendarDisplayEvent[],
   ) => {
-    // 数据排序一下
-    const sortData: typeof entriesForDate = entriesForDate.filter((f) =>
-      isStudyRecord(f),
-    );
-    const newArr = _.cloneDeep(
-      entriesForDate.filter(
-        (f): f is UpcomingReviewInRecordDto => !isStudyRecord(f),
-      ),
-    );
-    newArr.sort((a, b) => {
-      return (
-        dayjs(a.expectedReviewAt).valueOf() -
-        dayjs(b.expectedReviewAt).valueOf()
-      );
-    });
-    sortData.push(...newArr);
-
     return (
-      <ul className="list-none m-0 p-0 flex flex-col gap-1">
-        {sortData.map((item) => {
-          // 添加的复习计划
-          if (isStudyRecord(item)) {
-            return (
-              <li
-                key={item.id}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOpenEditModal(item as StudyRecordWithReviewsDto);
-                }}
-                className="cursor-pointer"
-              >
-                <Tooltip
-                  title={
-                    <>
-                      <p>
-                        课程完成时间：
-                        {dayjs(item.studiedAt).format('YYYY-MM-DD HH:mm')}
-                      </p>
-                      <p>点击编辑</p>
-                    </>
-                  }
-                >
-                  <Tag
-                    color={item.course?.color || 'blue'}
-                    className="w-100% m-0!"
-                  >
-                    {item.textTitle}
-                    <br />
-                    {item.course?.name}
-                  </Tag>
-                </Tooltip>
-              </li>
-            );
-          }
-          // 待复习的计划
-          return (
-            <li
-              key={item.expectedReviewAt.valueOf()}
-              className="cursor-default my-3px"
-              title={`复习时间：${dayjs(item.expectedReviewAt).format('YYYY-MM-DD HH:mm')}`}
-            >
-              <Space align="center">
-                <Badge color={item.course.color || 'blue'} />
-                <div>{item.textTitle}</div>
-              </Space>
-              <div>{item.ruleDescription}</div>
-            </li>
-          );
-        })}
-      </ul>
+      <SubItem
+        _date={_date}
+        entriesForDate={entriesForDate}
+        handleOpenEditModal={handleOpenEditModal}
+      ></SubItem>
     );
   };
 

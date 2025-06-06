@@ -24,7 +24,7 @@ export class UpcomingReviewInRecordDto {
   ruleId: string; // 复习规则ID
 
   // @ApiProperty({ description: '复习规则描述' })
-  ruleDescription: string; // 复习规则描述
+  ruleDescription: string | null; // 复习规则描述
 }
 
 export class StudyRecordWithReviewsDto

@@ -1,9 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ReviewRule, IntervalUnit, ReviewMode } from '@prisma/client';
+import { ReviewRule, ReviewMode } from '@prisma/client';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { UpcomingReviewDto } from './dto/upcoming-review.dto';
+import { getRuleDescription } from '../common/review-rule.util';
+import { addInterval } from '../common/date.util';
+import { GroupedUpcomingReviewsDto } from './dto/grouped-upcoming-reviews.dto';
+import { groupBy, map, sortBy } from 'lodash';
 
 dayjs.extend(customParseFormat);
 
@@ -19,7 +23,7 @@ export class UpcomingReviewsService {
     now: dayjs.Dayjs,
   ): dayjs.Dayjs | null {
     const baseTime = dayjs(studiedAt).second(0).millisecond(0);
-    let expectedTime = this.addInterval(baseTime, rule.value, rule.unit);
+    let expectedTime = addInterval(baseTime, rule.value, rule.unit);
 
     if (rule.mode === ReviewMode.ONCE) {
       return expectedTime.isAfter(now) ? expectedTime : null;
@@ -31,53 +35,17 @@ export class UpcomingReviewsService {
       }
       // 循环找到未来的第一个复习时间点
       while (expectedTime.isBefore(now) || expectedTime.isSame(now, 'minute')) {
-        expectedTime = this.addInterval(expectedTime, rule.value, rule.unit);
+        expectedTime = addInterval(expectedTime, rule.value, rule.unit);
       }
       return expectedTime;
     }
     return null;
   }
 
-  private addInterval(
-    date: dayjs.Dayjs,
-    value: number,
-    unit: IntervalUnit,
-  ): dayjs.Dayjs {
-    let dayjsUnit: dayjs.ManipulateType;
-    switch (unit) {
-      case IntervalUnit.MINUTE:
-        dayjsUnit = 'minute';
-        break;
-      case IntervalUnit.HOUR:
-        dayjsUnit = 'hour';
-        break;
-      case IntervalUnit.DAY:
-        dayjsUnit = 'day';
-        break;
-      default:
-        this.logger.warn(`不支持的时间间隔单位: ${String(unit)}`);
-        return date;
-    }
-    return date.add(value, dayjsUnit);
-  }
-
-  private getRuleDescription(rule: ReviewRule): string {
-    const unitMap = {
-      [IntervalUnit.MINUTE]: '分钟',
-      [IntervalUnit.HOUR]: '小时',
-      [IntervalUnit.DAY]: '天',
-    };
-    const modeMap = {
-      [ReviewMode.ONCE]: '一次性',
-      [ReviewMode.RECURRING]: '周期性',
-    };
-    return `${rule.value} ${unitMap[rule.unit]}后 (${modeMap[rule.mode]}) - ${rule.note || '无备注'}`;
-  }
-
   async getUpcomingReviews(
     userId: string,
     withinDays: number,
-  ): Promise<UpcomingReviewDto[]> {
+  ): Promise<GroupedUpcomingReviewsDto[]> {
     this.logger.log(
       `正在获取用户 ${userId} 在 ${withinDays} 天内的待复习项目。`,
     );
@@ -132,18 +100,51 @@ export class UpcomingReviewsService {
             textTitle: record.textTitle,
             courseId: record.courseId,
             courseName: record.course.name,
+            courseColor: record.course.color,
             expectedReviewAt: expectedReviewAtDayjs.toDate(),
             ruleId: rule.id,
-            ruleDescription: this.getRuleDescription(rule),
+            ruleDescription: getRuleDescription(rule),
           });
         }
       }
     }
     // 按预计复习时间升序排序
-    return upcomingReviews.sort(
+    const sortedReviews = upcomingReviews.sort(
       (a, b) =>
         dayjs(a.expectedReviewAt).valueOf() -
         dayjs(b.expectedReviewAt).valueOf(),
     );
+
+    // 按日期分组
+    const groupedByDate = groupBy(sortedReviews, (review) =>
+      dayjs(review.expectedReviewAt).format('YYYY-MM-DD'),
+    );
+
+    // 转换为最终的数据结构
+    const result: GroupedUpcomingReviewsDto[] = map(
+      groupedByDate,
+      (reviews, date) => {
+        // 在每个日期下，再按课程ID分组
+        const groupedByCourse = groupBy(reviews, 'courseId');
+
+        return {
+          date,
+          courses: map(groupedByCourse, (courseReviews, courseId) => ({
+            courseId,
+            courseName: courseReviews[0].courseName, // 同一个课程的信息是一样的
+            courseColor: courseReviews[0].courseColor,
+            reviews: sortBy(courseReviews, 'expectedReviewAt').map((r) => ({
+              studyRecordId: r.studyRecordId,
+              textTitle: r.textTitle,
+              expectedReviewAt: r.expectedReviewAt,
+              ruleId: r.ruleId,
+              ruleDescription: r.ruleDescription,
+            })),
+          })),
+        };
+      },
+    );
+
+    return sortBy(result, 'date'); // 按日期排序最终结果
   }
 }

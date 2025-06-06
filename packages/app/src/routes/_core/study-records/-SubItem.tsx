@@ -8,7 +8,7 @@ import type {
   UpcomingReviewInRecordDto,
 } from '@y/interface/study-records/dto/study-record-with-reviews.dto.js';
 import dayjs from 'dayjs';
-import { Badge, Space, Tag, Tooltip } from 'antd';
+import { Tag, Tooltip } from 'antd';
 
 interface Props {
   _date: Dayjs;
@@ -50,12 +50,13 @@ export const SubItem: FC<Props> = ({ entriesForDate, handleOpenEditModal }) => {
               <Tooltip
                 title={
                   <>
-                    <p>备注：{item.note}</p>
                     <p>
                       课程完成时间：
                       {dayjs(item.studiedAt).format('YYYY-MM-DD HH:mm')}
                     </p>
-                    <p>点击编辑</p>
+                    {item.note && <p>备注：{item.note}</p>}
+                    {item.course?.note && <p>课程备注：{item.course?.note}</p>}
+                    <p>点击编辑、删除对应记录</p>
                   </>
                 }
               >
@@ -74,23 +75,20 @@ export const SubItem: FC<Props> = ({ entriesForDate, handleOpenEditModal }) => {
         return (
           <li
             key={item.expectedReviewAt.valueOf()}
-            className="cursor-default"
+            className="cursor-default pos-relative pl-3"
             title={`复习时间：${dayjs(item.expectedReviewAt).format('YYYY-MM-DD HH:mm')}`}
           >
-            <Tag
-              bordered={false}
-              color="rgba(125, 108, 226, 0.85)"
-              className="w-full m-0! px-2"
-            >
-              <div className="flex flex-justify-between">
-                <Space align="center">
-                  <Badge color={item.course.color || 'blue'} />
-                  <div>{item.textTitle}</div>
-                </Space>
-                <div>{item.course.name}</div>
-              </div>
-              <div>{item.ruleDescription}</div>
-            </Tag>
+            <div
+              className="w-1 pos-absolute top-0 bottom-0 left-0"
+              style={{
+                background: item.course.color!,
+              }}
+            ></div>
+            <div className="flex flex-justify-between">
+              <div>{item.textTitle}</div>
+              <div>{item.course.name}</div>
+            </div>
+            {!!item.ruleDescription && <div>{item.ruleDescription}</div>}
           </li>
         );
       })}

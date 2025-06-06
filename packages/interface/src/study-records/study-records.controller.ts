@@ -20,6 +20,7 @@ import { AuthenticatedRequest } from 'src/auth/interfaces/authenticated-request.
 import { GetStudyRecordsDto } from './dto/get-study-records.dto';
 import { GetStudyRecordsByMonthQueryDto } from './dto/get-study-records-by-month-query.dto';
 import { StudyRecordWithReviewsDto } from './dto/study-record-with-reviews.dto';
+import { GroupedStudyRecordsDto } from './dto/grouped-study-records.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('study-records')
@@ -37,7 +38,8 @@ export class StudyRecordsController {
     @Req() req: AuthenticatedRequest,
     @Body() createStudyRecordDto: CreateStudyRecordDto,
   ) {
-    return this.studyRecordsService.create(req.user.id, createStudyRecordDto);
+    const userId = req.user.id;
+    return this.studyRecordsService.create(userId, createStudyRecordDto);
   }
 
   /**
@@ -50,7 +52,7 @@ export class StudyRecordsController {
   findAll(
     @Req() req: AuthenticatedRequest,
     @Query() query: GetStudyRecordsDto,
-  ) {
+  ): Promise<GroupedStudyRecordsDto[]> {
     const userId = req.user.id;
     return this.studyRecordsService.findAllByUserId(
       userId,

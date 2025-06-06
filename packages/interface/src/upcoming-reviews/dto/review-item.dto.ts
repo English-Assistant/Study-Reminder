@@ -1,20 +1,11 @@
 import { IsString, IsDate } from 'class-validator';
 
-export class UpcomingReviewDto {
+export class ReviewItemDto {
   @IsString()
   studyRecordId!: string;
 
   @IsString()
   textTitle!: string;
-
-  @IsString()
-  courseId!: string;
-
-  @IsString()
-  courseName!: string; // 假设我们会从课程关联中获取
-
-  @IsString()
-  courseColor!: string | null;
 
   @IsDate()
   expectedReviewAt!: Date;

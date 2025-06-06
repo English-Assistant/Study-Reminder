@@ -7,13 +7,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import {
-  StudyRecord,
-  Prisma,
-  ReviewRule,
-  IntervalUnit,
-  ReviewMode,
-} from '@prisma/client';
+import { StudyRecord, Prisma, ReviewRule, ReviewMode } from '@prisma/client';
 import { CreateStudyRecordDto } from './dto/create-study-record.dto';
 import { UpdateStudyRecordDto } from './dto/update-study-record.dto';
 import dayjs from 'dayjs';
@@ -24,7 +18,10 @@ import {
   StudyRecordWithReviewsDto,
   UpcomingReviewInRecordDto,
 } from './dto/study-record-with-reviews.dto';
-import { isEmpty, sortBy } from 'lodash';
+import { isEmpty, sortBy, groupBy, map, orderBy } from 'lodash';
+import { getRuleDescription } from '../common/review-rule.util';
+import { addInterval } from '../common/date.util';
+import { GroupedStudyRecordsDto } from './dto/grouped-study-records.dto';
 
 dayjs.extend(customParseFormat);
 dayjs.extend(isSameOrAfter);
@@ -93,7 +90,7 @@ export class StudyRecordsService {
     courseId?: string,
     filterDate?: string,
     addedWithinDays?: number,
-  ): Promise<StudyRecord[]> {
+  ): Promise<GroupedStudyRecordsDto[]> {
     this.logger.log(
       `正在获取用户 ${userId} 的学习记录，课程ID：${courseId}，过滤日期：${filterDate}，添加天数范围：${addedWithinDays}`,
     );
@@ -129,13 +126,23 @@ export class StudyRecordsService {
     }
 
     try {
-      return await this.prisma.studyRecord.findMany({
+      const records = await this.prisma.studyRecord.findMany({
         where: whereClause,
-        orderBy: { studiedAt: 'desc' }, // 或 createdAt: 'desc' 如果主要关心添加顺序
         include: {
           course: true,
         },
       });
+
+      const groupedByDate = groupBy(records, (record) =>
+        dayjs(record.studiedAt).format('YYYY-MM-DD'),
+      );
+
+      const result = map(groupedByDate, (dayRecords, date) => ({
+        date,
+        records: orderBy(dayRecords, ['studiedAt'], ['desc']),
+      }));
+
+      return orderBy(result, ['date'], ['desc']);
     } catch (error) {
       this.logger.error(
         `获取用户 ${userId} 的学习记录失败：${error.message}`,
@@ -311,46 +318,6 @@ export class StudyRecordsService {
     }
 
     return consecutiveDays;
-  }
-
-  private addInterval(
-    date: dayjs.Dayjs,
-    value: number,
-    unit: IntervalUnit,
-  ): dayjs.Dayjs {
-    let dayjsUnit: dayjs.ManipulateType;
-    switch (unit) {
-      case IntervalUnit.MINUTE:
-        dayjsUnit = 'minute';
-        break;
-      case IntervalUnit.HOUR:
-        dayjsUnit = 'hour';
-        break;
-      case IntervalUnit.DAY:
-        dayjsUnit = 'day';
-        break;
-      default:
-        this.logger.warn(`不支持的时间单位：${String(unit)}`);
-        return date;
-    }
-    return date.add(value, dayjsUnit);
-  }
-
-  private getRuleDescription(rule: ReviewRule): string {
-    const unitMap = {
-      [IntervalUnit.MINUTE]: '分钟',
-      [IntervalUnit.HOUR]: '小时',
-      [IntervalUnit.DAY]: '天',
-    };
-
-    const baseStr = [
-      rule.value,
-      `${unitMap[rule.unit]}后`,
-      rule.mode === ReviewMode.ONCE ? null : `周期性`,
-    ]
-      .filter((f) => f)
-      .join(' ');
-    return [baseStr, rule.note || null].filter((f) => f).join(' - ');
   }
 
   async getStudyRecordsAndReviewsByMonth(
@@ -615,7 +582,7 @@ export class StudyRecordsService {
     monthEnd: dayjs.Dayjs,
   ): UpcomingReviewInRecordDto[] {
     const baseTime = dayjs(record.studiedAt).second(0).millisecond(0);
-    const firstReviewTime = this.addInterval(baseTime, rule.value, rule.unit);
+    const firstReviewTime = addInterval(baseTime, rule.value, rule.unit);
 
     const reviews: UpcomingReviewInRecordDto[] = [];
 
@@ -642,7 +609,7 @@ export class StudyRecordsService {
           reviews.push(this.createReviewItem(record, rule, currentReviewTime));
         }
 
-        const nextReviewTime = this.addInterval(
+        const nextReviewTime = addInterval(
           currentReviewTime,
           rule.value,
           rule.unit,
@@ -695,7 +662,7 @@ export class StudyRecordsService {
       },
       expectedReviewAt: reviewTime.toDate(),
       ruleId: rule.id,
-      ruleDescription: this.getRuleDescription(rule),
+      ruleDescription: getRuleDescription(rule),
     };
   }
 }

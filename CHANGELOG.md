@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.5.0...v1.6.0) (2025-06-06)
+
+
+### Features
+
+* 添加学习记录和复习计划的可视化组件，更新相关依赖，优化仪表盘布局 ([b98f26f](https://github.com/English-Assistant/Study-Reminder/commit/b98f26f61b389cd935bc52a75a45937cd09b40f4))
+
 ## [1.5.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.4.0...v1.5.0) (2025-06-05)
 
 

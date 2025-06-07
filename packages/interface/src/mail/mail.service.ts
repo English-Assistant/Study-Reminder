@@ -108,4 +108,27 @@ export class MailService {
       template,
     });
   }
+
+  async sendUnregisterCodeEmail(
+    email: string,
+    userName: string,
+    verificationCode: string,
+    expirationTime?: number,
+  ): Promise<void> {
+    const { UnregisterCodeEmail } = await import(
+      '../../emails/unregister-code'
+    );
+
+    const template = React.createElement(UnregisterCodeEmail, {
+      userName,
+      verificationCode,
+      expirationTime,
+    });
+
+    await this.sendMail({
+      email,
+      subject: `【重要】Study Reminder 注销账户验证码: ${verificationCode}`,
+      template,
+    });
+  }
 }

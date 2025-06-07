@@ -10,12 +10,14 @@ import { UserWithoutPassword } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
-import { Setting, ReviewRule, IntervalUnit, ReviewMode } from '@prisma/client';
+import { Setting } from '@prisma/client';
 import * as _ from 'lodash';
 import {
   VerificationCodeService,
   VerificationCodeType,
 } from '../verification-code/verification-code.service';
+import { defaultReviewRules } from '../common/constants/review.constants';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -230,22 +232,89 @@ export class AuthService {
   }
 
   /**
+   * 发送注销验证码
+   */
+  async sendUnregisterCode(userId: string): Promise<{ message: string }> {
+    const user = await this.usersService.findOneById(userId);
+    if (!user) {
+      throw new BadRequestException('用户不存在');
+    }
+
+    const canSend = await this.verificationCodeService.canSendCode(
+      user.email,
+      VerificationCodeType.UNREGISTER,
+    );
+    if (!canSend) {
+      throw new BadRequestException('发送过于频繁，请稍后再试');
+    }
+
+    await this.verificationCodeService.generateAndSendCode(
+      user.email,
+      VerificationCodeType.UNREGISTER,
+      user.username,
+    );
+
+    return { message: '注销验证码已发送至您的邮箱' };
+  }
+
+  /**
+   * 注销账户
+   */
+  async unregister(
+    userId: string,
+    verificationCode: string,
+  ): Promise<{ message: string }> {
+    const user = await this.usersService.findOneById(userId);
+    if (!user) {
+      // This should not happen if the user is authenticated via JWT
+      throw new UnauthorizedException('用户不存在');
+    }
+
+    // 1. 验证验证码
+    await this.verificationCodeService.validateAndConsume(
+      user.email,
+      verificationCode,
+      VerificationCodeType.UNREGISTER,
+    );
+
+    // 2. 使用事务删除用户及所有相关数据
+    try {
+      await this.prisma.$transaction(async (tx) => {
+        // 按依赖顺序删除
+        await tx.reviewRule.deleteMany({ where: { userId } });
+        await tx.setting.deleteMany({ where: { userId } });
+        await tx.studyRecord.deleteMany({ where: { userId } });
+        await tx.course.deleteMany({ where: { userId } });
+        await tx.verificationCode.deleteMany({ where: { email: user.email } });
+
+        // 最后删除用户
+        await tx.user.delete({ where: { id: userId } });
+      });
+
+      this.logger.log(`用户 ${user.username} (ID: ${userId}) 已成功注销`);
+      return { message: '账户已成功注销' };
+    } catch (error) {
+      this.logger.error(
+        `注销用户 ${userId} 时发生错误`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw new BadRequestException('注销过程中发生错误，请稍后重试');
+    }
+  }
+
+  /**
    * 创建默认复习规则
    */
   private async createDefaultReviewRules(userId: string): Promise<void> {
-    const defaultRulesData: Omit<ReviewRule, 'id' | 'note'>[] = [
-      { userId, value: 1, unit: IntervalUnit.HOUR, mode: ReviewMode.ONCE },
-      { userId, value: 1, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
-      { userId, value: 2, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
-      { userId, value: 3, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
-      { userId, value: 7, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
-      { userId, value: 30, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
-      { userId, value: 60, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
-      { userId, value: 90, unit: IntervalUnit.DAY, mode: ReviewMode.ONCE },
-    ];
+    const defaultRulesData = defaultReviewRules.map((rule) => ({
+      ...rule,
+      userId,
+    }));
 
     try {
-      await this.prisma.reviewRule.createMany({ data: defaultRulesData });
+      await this.prisma.reviewRule.createMany({
+        data: defaultRulesData as Prisma.ReviewRuleCreateManyInput[],
+      });
       this.logger.log(`为用户 ${userId} 创建了默认复习规则`);
     } catch (error) {
       this.logger.error(`为用户 ${userId} 创建默认复习规则失败:`, error);

@@ -132,4 +132,15 @@ export class StudyRecordsController {
   ): Promise<void> {
     await this.studyRecordsService.remove(id, req.user.id);
   }
+
+  /**
+   * 获取指定用户的学习记录总数。
+   * @param req 包含认证用户信息的请求对象。
+   * @returns 一个包含总数的对象。
+   */
+  @Get('count')
+  countAll(@Req() req: AuthenticatedRequest): Promise<{ count: number }> {
+    const userId = req.user.id;
+    return this.studyRecordsService.countAllByUserId(userId);
+  }
 }

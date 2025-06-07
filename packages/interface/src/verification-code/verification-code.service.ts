@@ -7,6 +7,7 @@ import { addMinutes } from 'date-fns';
 export enum VerificationCodeType {
   REGISTER = 'register',
   RESET_PASSWORD = 'reset_password',
+  UNREGISTER = 'unregister',
 }
 
 @Injectable()
@@ -51,6 +52,13 @@ export class VerificationCodeService {
     // 根据类型发送不同的邮件
     if (type === VerificationCodeType.RESET_PASSWORD) {
       await this.mailService.sendResetPasswordCodeEmail(
+        email,
+        userName || '用户',
+        code,
+        expirationMinutes,
+      );
+    } else if (type === VerificationCodeType.UNREGISTER) {
+      await this.mailService.sendUnregisterCodeEmail(
         email,
         userName || '用户',
         code,

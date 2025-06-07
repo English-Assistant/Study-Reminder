@@ -6,21 +6,13 @@ import clsx from 'clsx';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 // import type { ManualReviewEntryDto } from '@y/interface/manual-review-entries-module/dto/manual-review-entry.dto.ts'; // 移除
 import { Button } from 'antd';
-import type {
-  StudyRecordWithReviewsDto,
-  UpcomingReviewInRecordDto,
-} from '@y/interface/study-records/dto/study-record-with-reviews.dto.ts'; // 导入所需类型
+import type { UpcomingReviewInRecordDto } from '@y/interface/study-records/dto/study-record-with-reviews.dto.ts'; // 导入所需类型
 import { isStudyRecord } from './-utils';
-
-// 从父组件导入 CalendarDisplayEvent 类型，或者在此重新定义
-// 假设父组件会导出它，或者我们在这里定义一个匹配的本地类型
-type CalendarDisplayEvent =
-  | Omit<StudyRecordWithReviewsDto, 'upcomingReviewsInMonth'>
-  | UpcomingReviewInRecordDto;
+import type { CalendarDisplayEvent } from './index';
 
 function isUpcomingReview(
   item: CalendarDisplayEvent,
-): item is UpcomingReviewInRecordDto {
+): item is UpcomingReviewInRecordDto & { _key: string } {
   return (
     'expectedReviewAt' in item && 'studyRecordId' in item && 'course' in item
   );

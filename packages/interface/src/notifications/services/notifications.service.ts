@@ -10,13 +10,11 @@ import {
   Setting,
   StudyRecord,
   ReviewRule,
-  IntervalUnit,
   ReviewMode,
+  StudyTimeWindow,
 } from '@prisma/client';
 import dayjs from 'dayjs';
-import customParseFormat from 'dayjs/plugin/customParseFormat';
-
-dayjs.extend(customParseFormat);
+import { ReviewLogicService } from '../../review-logic/review-logic.service';
 
 // 辅助类型，用于组合用户及其相关数据
 type UserWithRelations = User & {
@@ -28,6 +26,7 @@ type UserWithRelations = User & {
       name: string;
     } | null;
   })[];
+  studyTimeWindows: StudyTimeWindow[]; // 用户的学习时间段
 };
 
 export interface ReviewReminderDetails {
@@ -35,6 +34,9 @@ export interface ReviewReminderDetails {
   courseName: string; // 课程名称
 }
 
+/**
+ * 负责处理和发送所有类型的通知，包括邮件和应用内 WebSocket 推送。
+ */
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
@@ -45,41 +47,17 @@ export class NotificationsService {
     private readonly prisma: PrismaService,
     private readonly notificationsGateway: NotificationsGateway,
     private readonly mailService: MailService,
+    private readonly reviewLogicService: ReviewLogicService,
   ) {}
 
   private constructBaseTime(studyRecord: StudyRecord): dayjs.Dayjs {
-    // studyRecord.studiedAt is a Date object from Prisma.
-    // We directly use it and standardize seconds and milliseconds.
     return dayjs(studyRecord.studiedAt).second(0).millisecond(0);
-  }
-
-  private addInterval(
-    date: dayjs.Dayjs,
-    value: number,
-    unit: IntervalUnit,
-  ): dayjs.Dayjs {
-    let dayjsUnit: dayjs.ManipulateType;
-    switch (unit) {
-      case IntervalUnit.MINUTE:
-        dayjsUnit = 'minute';
-        break;
-      case IntervalUnit.HOUR:
-        dayjsUnit = 'hour';
-        break;
-      case IntervalUnit.DAY:
-        dayjsUnit = 'day';
-        break;
-      default:
-        this.logger.warn(`Unsupported IntervalUnit: ${String(unit)}`);
-        return date; // Return original date if unit is unsupported
-    }
-    return date.add(value, dayjsUnit);
   }
 
   @Cron(CronExpression.EVERY_MINUTE)
   async handleScheduledReviewChecks() {
-    this.logger.log('运行计划中的复习项检查 (使用 dayjs)...');
-    const now = dayjs().second(0).millisecond(0); // 当前中国时间，标准化到分钟
+    this.logger.log('运行计划中的复习项检查...');
+    const now = dayjs().second(0).millisecond(0);
 
     const users = (await this.prisma.user.findMany({
       where: {
@@ -91,9 +69,10 @@ export class NotificationsService {
       include: {
         settings: true,
         reviewRules: true,
+        studyTimeWindows: true,
         studyRecords: {
           include: {
-            course: true, // 包含课程信息
+            course: true,
           },
           orderBy: {
             createdAt: 'desc',
@@ -129,45 +108,50 @@ export class NotificationsService {
         const baseTime = this.constructBaseTime(record);
         if (!baseTime.isValid()) {
           this.logger.warn(
-            `无效的基础时间 for record ${record.id}. 打卡日期: ${record.studiedAt ? record.studiedAt.toISOString() : 'N/A'}.`,
+            `无效的基础时间，记录ID: ${record.id}。打卡日期: ${record.studiedAt ? record.studiedAt.toISOString() : '无'}。`,
           );
           continue;
         }
 
         for (const rule of user.reviewRules) {
           let expectedNotificationTime: dayjs.Dayjs | null = null;
+          let potentialTime: dayjs.Dayjs;
 
           if (rule.mode === ReviewMode.ONCE) {
-            const potentialTime = this.addInterval(
+            potentialTime = this.reviewLogicService.addInterval(
               baseTime,
               rule.value,
               rule.unit,
             );
-            if (potentialTime.isSame(now, 'minute')) {
-              expectedNotificationTime = potentialTime;
-            }
           } else if (rule.mode === ReviewMode.RECURRING) {
-            let currentExpectedTime = this.addInterval(
+            potentialTime = this.reviewLogicService.addInterval(
               baseTime,
               rule.value,
               rule.unit,
             );
 
-            if (currentExpectedTime.isAfter(now, 'minute')) {
+            if (potentialTime.isAfter(now, 'minute')) {
               continue;
             }
-
-            while (currentExpectedTime.isBefore(now, 'minute')) {
-              currentExpectedTime = this.addInterval(
-                currentExpectedTime,
+            while (potentialTime.isBefore(now, 'minute')) {
+              potentialTime = this.reviewLogicService.addInterval(
+                potentialTime,
                 rule.value,
                 rule.unit,
               );
             }
+          } else {
+            continue;
+          }
 
-            if (currentExpectedTime.isSame(now, 'minute')) {
-              expectedNotificationTime = currentExpectedTime;
-            }
+          const adjustedTime =
+            this.reviewLogicService.adjustReviewTimeForStudyWindows(
+              potentialTime,
+              user.studyTimeWindows,
+            );
+
+          if (adjustedTime.isSame(now, 'minute')) {
+            expectedNotificationTime = adjustedTime;
           }
 
           if (expectedNotificationTime) {
@@ -220,6 +204,12 @@ export class NotificationsService {
     this.logger.log('完成计划中的复习项检查。');
   }
 
+  /**
+   * 发送复习提醒邮件。
+   * @param email - 接收者的邮箱地址。
+   * @param username - 接收者的用户名。
+   * @param reviewDetails - 复习项的详细信息。
+   */
   async sendReviewReminderEmail(
     email: string,
     username: string,
@@ -246,7 +236,11 @@ export class NotificationsService {
     }
   }
 
-  // 发送应用内通知的方法
+  /**
+   * 通过 WebSocket 发送应用内实时通知。
+   * @param userId - 目标用户的 ID。
+   * @param data - 通知的数据负载，包括标题、正文和标签。
+   */
   sendInAppNotification(
     userId: string,
     data: {
@@ -265,7 +259,7 @@ export class NotificationsService {
         timestamp: new Date().toISOString(),
       };
 
-      // 通过WebSocket发送实时通知
+      // 通过 WebSocket 网关发送实时通知
       this.notificationsGateway.sendToUser(
         userId,
         'notification',

@@ -16,9 +16,9 @@ import { Route as LoginImport } from './routes/login'
 import { Route as ForgotPasswordImport } from './routes/forgot-password'
 import { Route as CoreImport } from './routes/_core'
 import { Route as IndexImport } from './routes/index'
-import { Route as CoreSetUpImport } from './routes/_core/set-up'
 import { Route as CoreAboutImport } from './routes/_core/about'
 import { Route as CoreStudyRecordsIndexImport } from './routes/_core/study-records/index'
+import { Route as CoreSetUpIndexImport } from './routes/_core/set-up/index'
 import { Route as CoreDashboardIndexImport } from './routes/_core/dashboard/index'
 import { Route as CoreCoursesIndexImport } from './routes/_core/courses/index'
 
@@ -53,12 +53,6 @@ const IndexRoute = IndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const CoreSetUpRoute = CoreSetUpImport.update({
-  id: '/set-up',
-  path: '/set-up',
-  getParentRoute: () => CoreRoute,
-} as any)
-
 const CoreAboutRoute = CoreAboutImport.update({
   id: '/about',
   path: '/about',
@@ -68,6 +62,12 @@ const CoreAboutRoute = CoreAboutImport.update({
 const CoreStudyRecordsIndexRoute = CoreStudyRecordsIndexImport.update({
   id: '/study-records/',
   path: '/study-records/',
+  getParentRoute: () => CoreRoute,
+} as any)
+
+const CoreSetUpIndexRoute = CoreSetUpIndexImport.update({
+  id: '/set-up/',
+  path: '/set-up/',
   getParentRoute: () => CoreRoute,
 } as any)
 
@@ -129,13 +129,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CoreAboutImport
       parentRoute: typeof CoreImport
     }
-    '/_core/set-up': {
-      id: '/_core/set-up'
-      path: '/set-up'
-      fullPath: '/set-up'
-      preLoaderRoute: typeof CoreSetUpImport
-      parentRoute: typeof CoreImport
-    }
     '/_core/courses/': {
       id: '/_core/courses/'
       path: '/courses'
@@ -148,6 +141,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof CoreDashboardIndexImport
+      parentRoute: typeof CoreImport
+    }
+    '/_core/set-up/': {
+      id: '/_core/set-up/'
+      path: '/set-up'
+      fullPath: '/set-up'
+      preLoaderRoute: typeof CoreSetUpIndexImport
       parentRoute: typeof CoreImport
     }
     '/_core/study-records/': {
@@ -164,17 +164,17 @@ declare module '@tanstack/react-router' {
 
 interface CoreRouteChildren {
   CoreAboutRoute: typeof CoreAboutRoute
-  CoreSetUpRoute: typeof CoreSetUpRoute
   CoreCoursesIndexRoute: typeof CoreCoursesIndexRoute
   CoreDashboardIndexRoute: typeof CoreDashboardIndexRoute
+  CoreSetUpIndexRoute: typeof CoreSetUpIndexRoute
   CoreStudyRecordsIndexRoute: typeof CoreStudyRecordsIndexRoute
 }
 
 const CoreRouteChildren: CoreRouteChildren = {
   CoreAboutRoute: CoreAboutRoute,
-  CoreSetUpRoute: CoreSetUpRoute,
   CoreCoursesIndexRoute: CoreCoursesIndexRoute,
   CoreDashboardIndexRoute: CoreDashboardIndexRoute,
+  CoreSetUpIndexRoute: CoreSetUpIndexRoute,
   CoreStudyRecordsIndexRoute: CoreStudyRecordsIndexRoute,
 }
 
@@ -187,9 +187,9 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/about': typeof CoreAboutRoute
-  '/set-up': typeof CoreSetUpRoute
   '/courses': typeof CoreCoursesIndexRoute
   '/dashboard': typeof CoreDashboardIndexRoute
+  '/set-up': typeof CoreSetUpIndexRoute
   '/study-records': typeof CoreStudyRecordsIndexRoute
 }
 
@@ -200,9 +200,9 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/about': typeof CoreAboutRoute
-  '/set-up': typeof CoreSetUpRoute
   '/courses': typeof CoreCoursesIndexRoute
   '/dashboard': typeof CoreDashboardIndexRoute
+  '/set-up': typeof CoreSetUpIndexRoute
   '/study-records': typeof CoreStudyRecordsIndexRoute
 }
 
@@ -214,9 +214,9 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/_core/about': typeof CoreAboutRoute
-  '/_core/set-up': typeof CoreSetUpRoute
   '/_core/courses/': typeof CoreCoursesIndexRoute
   '/_core/dashboard/': typeof CoreDashboardIndexRoute
+  '/_core/set-up/': typeof CoreSetUpIndexRoute
   '/_core/study-records/': typeof CoreStudyRecordsIndexRoute
 }
 
@@ -229,9 +229,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/about'
-    | '/set-up'
     | '/courses'
     | '/dashboard'
+    | '/set-up'
     | '/study-records'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -241,9 +241,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/about'
-    | '/set-up'
     | '/courses'
     | '/dashboard'
+    | '/set-up'
     | '/study-records'
   id:
     | '__root__'
@@ -253,9 +253,9 @@ export interface FileRouteTypes {
     | '/login'
     | '/register'
     | '/_core/about'
-    | '/_core/set-up'
     | '/_core/courses/'
     | '/_core/dashboard/'
+    | '/_core/set-up/'
     | '/_core/study-records/'
   fileRoutesById: FileRoutesById
 }
@@ -300,9 +300,9 @@ export const routeTree = rootRoute
       "filePath": "_core.tsx",
       "children": [
         "/_core/about",
-        "/_core/set-up",
         "/_core/courses/",
         "/_core/dashboard/",
+        "/_core/set-up/",
         "/_core/study-records/"
       ]
     },
@@ -319,16 +319,16 @@ export const routeTree = rootRoute
       "filePath": "_core/about.tsx",
       "parent": "/_core"
     },
-    "/_core/set-up": {
-      "filePath": "_core/set-up.tsx",
-      "parent": "/_core"
-    },
     "/_core/courses/": {
       "filePath": "_core/courses/index.tsx",
       "parent": "/_core"
     },
     "/_core/dashboard/": {
       "filePath": "_core/dashboard/index.tsx",
+      "parent": "/_core"
+    },
+    "/_core/set-up/": {
+      "filePath": "_core/set-up/index.tsx",
       "parent": "/_core"
     },
     "/_core/study-records/": {

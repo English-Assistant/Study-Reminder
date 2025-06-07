@@ -1,46 +1,20 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { ReviewRule, ReviewMode } from '@prisma/client';
 import dayjs from 'dayjs';
-import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { UpcomingReviewDto } from './dto/upcoming-review.dto';
 import { getRuleDescription } from '../common/review-rule.util';
-import { addInterval } from '../common/date.util';
 import { GroupedUpcomingReviewsDto } from './dto/grouped-upcoming-reviews.dto';
 import { groupBy, map, sortBy } from 'lodash';
-
-dayjs.extend(customParseFormat);
+import { ReviewLogicService } from '../review-logic/review-logic.service';
 
 @Injectable()
 export class UpcomingReviewsService {
   private readonly logger = new Logger(UpcomingReviewsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
-
-  private calculateNextReviewTime(
-    studiedAt: Date,
-    rule: ReviewRule,
-    now: dayjs.Dayjs,
-  ): dayjs.Dayjs | null {
-    const baseTime = dayjs(studiedAt).second(0).millisecond(0);
-    let expectedTime = addInterval(baseTime, rule.value, rule.unit);
-
-    if (rule.mode === ReviewMode.ONCE) {
-      return expectedTime.isAfter(now) ? expectedTime : null;
-    }
-
-    if (rule.mode === ReviewMode.RECURRING) {
-      if (expectedTime.isAfter(now)) {
-        return expectedTime;
-      }
-      // 循环找到未来的第一个复习时间点
-      while (expectedTime.isBefore(now) || expectedTime.isSame(now, 'minute')) {
-        expectedTime = addInterval(expectedTime, rule.value, rule.unit);
-      }
-      return expectedTime;
-    }
-    return null;
-  }
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reviewLogicService: ReviewLogicService,
+  ) {}
 
   async getUpcomingReviews(
     userId: string,
@@ -57,11 +31,12 @@ export class UpcomingReviewsService {
       include: {
         studyRecords: {
           include: {
-            course: true, // 包含课程信息以获取课程名称
+            course: true,
           },
-          orderBy: { studiedAt: 'desc' }, // 获取最新的学习记录优先处理可能更优，但此处对结果无影响
+          orderBy: { studiedAt: 'desc' },
         },
         reviewRules: true,
+        studyTimeWindows: true,
       },
     });
 
@@ -70,7 +45,7 @@ export class UpcomingReviewsService {
       return [];
     }
 
-    const { studyRecords, reviewRules } = userWithData;
+    const { studyRecords, reviewRules, studyTimeWindows } = userWithData;
     if (!studyRecords.length || !reviewRules.length) {
       return [];
     }
@@ -85,11 +60,20 @@ export class UpcomingReviewsService {
         continue;
       }
       for (const rule of reviewRules) {
-        const expectedReviewAtDayjs = this.calculateNextReviewTime(
-          record.studiedAt,
-          rule,
-          now,
-        );
+        let expectedReviewAtDayjs =
+          this.reviewLogicService.calculateNextReviewTime(
+            record.studiedAt,
+            rule,
+            now,
+          );
+
+        if (expectedReviewAtDayjs) {
+          expectedReviewAtDayjs =
+            this.reviewLogicService.adjustReviewTimeForStudyWindows(
+              expectedReviewAtDayjs,
+              studyTimeWindows,
+            );
+        }
 
         if (
           expectedReviewAtDayjs &&

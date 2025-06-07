@@ -1,4 +1,9 @@
-import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
@@ -6,6 +11,8 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
+  private readonly logger = new Logger(PrismaService.name);
+
   constructor() {
     super({
       // log: ['query', 'info', 'warn', 'error'], // 可选：配置 Prisma 日志级别
@@ -14,15 +21,18 @@ export class PrismaService
   }
 
   async onModuleInit() {
-    // 注意：这里不需要手动连接，PrismaClient 会在首次查询时延迟连接
-    // 或者您可以明确调用 this.$connect()
-    await this.$connect();
-    console.log('Prisma Client connected to the database.');
+    this.logger.log(`当前应用连接的数据库地址是: ${process.env.DATABASE_URL}`);
+    try {
+      await this.$connect();
+      this.logger.log('Prisma Client 已成功连接到数据库。');
+    } catch (error) {
+      this.logger.error('Prisma Client 连接数据库失败:', error);
+    }
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
-    console.log('Prisma Client disconnected from the database.');
+    this.logger.log('Prisma Client 已断开与数据库的连接。');
   }
 
   // 如果需要，可以在这里添加自定义的 Prisma 辅助方法

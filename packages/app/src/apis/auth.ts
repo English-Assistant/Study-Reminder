@@ -7,6 +7,7 @@ import type { RegisterDto } from '@y/interface/auth/dto/register.dto.ts';
 import type { LoginDto } from '@y/interface/auth/dto/login.dto.ts';
 import type { ForgotPasswordDto } from '@y/interface/auth/dto/forgot-password.dto.ts';
 import type { SendVerificationCodeDto } from '@y/interface/auth/dto/send-verification-code.dto.ts';
+import type { UnregisterDto } from '@y/interface/auth/dto/unregister.dto.js';
 
 // --- API Functions ---
 
@@ -58,5 +59,25 @@ export async function getUserSettingsApi() {
     await request.get<
       GlobalApiTypes<ReturnType<AuthController['getUserSettings']>>
     >('/auth/settings');
+  return response.data.data;
+}
+
+/**
+ * 发送注销验证码
+ */
+export async function sendUnregisterCodeApi() {
+  const response = await request.post<
+    GlobalApiTypes<ReturnType<AuthController['sendUnregisterCode']>>
+  >('/auth/unregister/send-code');
+  return response.data.data;
+}
+
+/**
+ * 确认注销账户
+ */
+export async function confirmUnregisterApi(data: UnregisterDto) {
+  const response = await request.post<
+    GlobalApiTypes<ReturnType<AuthController['unregister']>>
+  >('/auth/unregister/confirm', data);
   return response.data.data;
 }

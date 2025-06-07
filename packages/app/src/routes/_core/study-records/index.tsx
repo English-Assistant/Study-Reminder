@@ -22,9 +22,12 @@ interface EntryFormValues {
 import { useRequest } from 'ahooks';
 import { SubItem } from './-SubItem';
 
-export type CalendarDisplayEvent =
+export type CalendarDisplayEvent = (
   | Omit<StudyRecordWithReviewsDto, 'upcomingReviewsInMonth'>
-  | UpcomingReviewInRecordDto;
+  | UpcomingReviewInRecordDto
+) & {
+  _key: string;
+};
 
 export const Route = createFileRoute('/_core/study-records/')({
   component: AddCourseComponent,
@@ -68,11 +71,14 @@ function AddCourseComponent() {
     monthlyData.forEach((record) => {
       // 添加学习记录 - 移除 upcomingReviewsInMonth 属性
       const { upcomingReviewsInMonth, ...studyRecord } = record;
-      events.push(studyRecord);
+      events.push({ ...studyRecord, _key: studyRecord.id });
 
       // 添加复习提醒
       upcomingReviewsInMonth.forEach((review) => {
-        events.push(review);
+        events.push({
+          ...review,
+          _key: `${review.studyRecordId}-${review.ruleId}`,
+        });
       });
     });
     return events;
@@ -121,6 +127,7 @@ function AddCourseComponent() {
         _date={_date}
         entriesForDate={entriesForDate}
         handleOpenEditModal={handleOpenEditModal}
+        monthlyData={monthlyData}
       ></SubItem>
     );
   };

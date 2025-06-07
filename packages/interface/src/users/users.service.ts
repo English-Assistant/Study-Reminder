@@ -29,7 +29,7 @@ export class UsersService {
     return result;
   }
 
-  async findOneByUsername(username: string): Promise<User | null> {
+  findOneByUsername(username: string) {
     return this.prisma.user.findUnique({
       where: { username },
     });

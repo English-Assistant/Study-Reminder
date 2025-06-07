@@ -52,12 +52,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     } else {
       // 非 HttpException 的 fallback
-      responseMessage = 'Internal server error';
+      responseMessage =
+        exception instanceof Error
+          ? exception.message
+          : 'Internal server error';
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
     if (httpStatus === HttpStatus.INTERNAL_SERVER_ERROR) {
-      responseMessage = 'Internal server error';
+      responseMessage = '服务器内部发生错误';
     }
 
     const responseBody = {

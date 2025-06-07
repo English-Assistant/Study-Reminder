@@ -23,6 +23,7 @@ Study Reminder 是一款旨在帮助用户更有效地记忆和巩固所学知�
 
 - **安全认证**：完善的用户注册与登录系统，支持邮箱验证码注册
 - **密码管理**：安全的密码重置功能，支持邮箱验证
+- **用户注销**：提供安全的、通过邮箱验证的账户注销流程
 - **防护机制**：验证码发送频率限制，防止恶意攻击
 - **个性化设置**：自定义通知偏好和学习设置
 
@@ -40,6 +41,7 @@ Study Reminder 是一款旨在帮助用户更有效地记忆和巩固所学知�
 ### 🔄 智能复习系统
 
 - **自定义规则**：为每个用户设置个性化的复习周期（例如1小时后、1天后、每周等）
+- **学习时间段**：允许用户设置特定的学习时间窗口，所有复习提醒将智能调整到这些时间段内，确保在合适的时间收到通知。
 - **智能计划**：自动计算并展示未来需要复习的学习条目
 - **提醒通知**：通过邮件和应用内通知及时获得复习提醒
 
@@ -60,6 +62,7 @@ Study Reminder 是一款旨在帮助用户更有效地记忆和巩固所学知�
 - **Ant Design** - 企业级 UI 组件库
 - **UnoCSS** - 原子化 CSS 引擎
 - **Zustand** - 轻量级状态管理
+- **ahooks** - 强大的 React Hooks 库，用于数据请求等
 - **Socket.io Client** - 实时通信
 
 ### 后端技术栈
@@ -86,7 +89,7 @@ Study Reminder 是一款旨在帮助用户更有效地记忆和巩固所学知�
 ### 环境要求
 
 - Node.js 22+
-- pnpm 10+
+- pnpm 8+
 - Docker & Docker Compose
 - PostgreSQL 15+
 
@@ -99,28 +102,36 @@ git clone https://github.com/English-Assistant/Study-Reminder.git
 cd Study-Reminder
 ```
 
-2. **安装依赖**
+2. **配置环境变量**
+
+```bash
+# 复制 .env.example 并重命名为 .env
+cp .env.example .env
+# 编辑 .env 文件，至少需要配置数据库连接 (DATABASE_URL)
+```
+
+3. **安装依赖**
 
 ```bash
 pnpm install
 ```
 
-3. **配置环境变量**
+4. **运行数据库迁移 (首次运行或 schema 变更后)**
 
 ```bash
-# 复制环境变量模板并配置
-cp .env.example .env
-# 编辑 .env 文件，配置数据库连接、邮件服务等
+# 此命令会比较 Prisma schema 与数据库的差异，
+# 生成新的迁移文件并将其应用到数据库。
+pnpm --filter @y/interface exec prisma migrate dev
 ```
 
-4. **启动开发服务**
+5. **启动开发服务**
 
 ```bash
-# 启动前端开发服务器
-pnpm --filter review dev
+# 在一个终端中启动前端开发服务器
+pnpm --filter @y/review dev
 
-# 启动后端开发服务器
-pnpm --filter backend dev
+# 在另一个终端中启动后端开发服务器
+pnpm --filter @y/interface dev
 ```
 
 ### Docker 部署
@@ -128,16 +139,10 @@ pnpm --filter backend dev
 1. **使用 Docker Compose 一键部署**
 
 ```bash
-# 拉取预构建镜像并启动服务
-docker-compose -f docker/docker-compose.yml up -d
-```
-
-2. **自定义配置**
-
-```bash
 # 复制并编辑环境变量
 cp docker/.env.example docker/.env
 # 根据需要修改配置后启动
+# 该命令会拉取或构建镜像，并自动运行数据库迁移后启动服务
 docker-compose -f docker/docker-compose.yml --env-file docker/.env up -d
 ```
 

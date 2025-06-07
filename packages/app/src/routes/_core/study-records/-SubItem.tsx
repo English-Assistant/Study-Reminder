@@ -3,10 +3,7 @@ import type { CalendarDisplayEvent } from './index';
 import type { FC } from 'react';
 import { isStudyRecord } from './-utils';
 import * as _ from 'lodash-es';
-import type {
-  StudyRecordWithReviewsDto,
-  UpcomingReviewInRecordDto,
-} from '@y/interface/study-records/dto/study-record-with-reviews.dto.js';
+import type { StudyRecordWithReviewsDto } from '@y/interface/study-records/dto/study-record-with-reviews.dto.js';
 import dayjs from 'dayjs';
 import { Tag, Tooltip } from 'antd';
 
@@ -14,36 +11,31 @@ interface Props {
   _date: Dayjs;
   entriesForDate: CalendarDisplayEvent[];
   handleOpenEditModal: (item: StudyRecordWithReviewsDto) => void;
+  monthlyData: StudyRecordWithReviewsDto[];
 }
 
-export const SubItem: FC<Props> = ({ entriesForDate, handleOpenEditModal }) => {
-  // 数据排序一下
-  const sortData: typeof entriesForDate = entriesForDate.filter((f) =>
-    isStudyRecord(f),
+export const SubItem: FC<Props> = ({
+  entriesForDate,
+  handleOpenEditModal,
+  monthlyData,
+}) => {
+  const sortData = _.sortBy(entriesForDate, (item) =>
+    isStudyRecord(item) ? item.studiedAt : item.expectedReviewAt,
   );
-  const newArr = _.cloneDeep(
-    entriesForDate.filter(
-      (f): f is UpcomingReviewInRecordDto => !isStudyRecord(f),
-    ),
-  );
-  newArr.sort((a, b) => {
-    return (
-      dayjs(a.expectedReviewAt).valueOf() - dayjs(b.expectedReviewAt).valueOf()
-    );
-  });
-  sortData.push(...newArr);
 
   return (
     <ul className="list-none m-0 p-0 flex flex-col gap-1 max-h-240px overflow-auto">
       {sortData.map((item) => {
-        // 添加的复习计划
         if (isStudyRecord(item)) {
           return (
             <li
-              key={item.id}
+              key={item._key}
               onClick={(e) => {
                 e.stopPropagation();
-                handleOpenEditModal(item as StudyRecordWithReviewsDto);
+                const fullRecord = monthlyData.find((r) => r.id === item.id);
+                if (fullRecord) {
+                  handleOpenEditModal(fullRecord);
+                }
               }}
               className="cursor-pointer"
             >
@@ -71,12 +63,13 @@ export const SubItem: FC<Props> = ({ entriesForDate, handleOpenEditModal }) => {
             </li>
           );
         }
-        // 待复习的计划
         return (
           <li
-            key={item.expectedReviewAt.valueOf()}
+            key={item._key}
             className="cursor-default pos-relative pl-3"
-            title={`复习时间：${dayjs(item.expectedReviewAt).format('YYYY-MM-DD HH:mm')}`}
+            title={`复习时间：${dayjs(item.expectedReviewAt).format(
+              'YYYY-MM-DD HH:mm',
+            )}`}
           >
             <div
               className="w-1 pos-absolute top-0 bottom-0 left-0"

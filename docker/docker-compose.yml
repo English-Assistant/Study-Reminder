@@ -33,8 +33,6 @@ services:
     networks:
       - app-network
     restart: unless-stopped
-    command: >
-      sh -c "npx prisma migrate deploy && node dist/src/main"
 
   postgres_db:
     image: postgres:15

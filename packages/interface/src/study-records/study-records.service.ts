@@ -153,6 +153,22 @@ export class StudyRecordsService {
     }
   }
 
+  async countAllByUserId(userId: string): Promise<{ count: number }> {
+    this.logger.log(`正在为用户 ${userId} 计算学习记录总数`);
+    try {
+      const count = await this.prisma.studyRecord.count({
+        where: { userId },
+      });
+      return { count };
+    } catch (error) {
+      this.logger.error(
+        `为用户 ${userId} 计算学习记录总数失败: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException('无法计算学习记录总数。');
+    }
+  }
+
   async findOne(id: string, userId: string): Promise<StudyRecord | null> {
     this.logger.log(`正在获取用户 ${userId} 的学习记录 ${id}`);
     try {

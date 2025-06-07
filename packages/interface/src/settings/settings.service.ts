@@ -3,13 +3,19 @@ import {
   NotFoundException,
   InternalServerErrorException,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateEmailDto } from './dto/update-email.dto';
-import { UpdateReviewNotificationSettingsDto } from './dto/update-review-notification-settings.dto';
 import { SettingDto } from './dto/setting.dto';
-import { Prisma } from '@prisma/client';
-import { ReviewSettingsService } from '../review-settings/review-settings.service'; // 导入 ReviewSettingsService
+import { Prisma, StudyTimeWindow } from '@prisma/client';
+import { ReviewSettingsService } from '../review-settings/review-settings.service';
+import {
+  CreateStudyTimeWindowDto,
+  UpdateStudyTimeWindowDto,
+} from './dto/study-time-window.dto';
+import { UpdateNotificationFlagsDto } from './dto/update-notification-flags.dto';
+import { ReviewRuleDto } from '../review-settings/dto/review-rule.dto';
 
 @Injectable()
 export class SettingsService {
@@ -17,7 +23,7 @@ export class SettingsService {
 
   constructor(
     private prisma: PrismaService,
-    private reviewSettingsService: ReviewSettingsService, // 注入 ReviewSettingsService
+    private reviewSettingsService: ReviewSettingsService,
   ) {}
 
   async getSettings(userId: string): Promise<SettingDto> {
@@ -105,62 +111,129 @@ export class SettingsService {
     }
   }
 
-  async updateReviewNotificationSettings(
+  async updateNotificationFlags(
     userId: string,
-    dto: UpdateReviewNotificationSettingsDto,
+    dto: UpdateNotificationFlagsDto,
   ): Promise<{ message: string }> {
-    this.logger.log(`正在更新用户 ${userId} 的复习和通知设置`);
+    this.logger.log(`正在更新用户 ${userId} 的通知标志`);
     try {
-      // 1. 更新复习规则 (dto.reviewRules 现在是必填的)
-      // setReviewRules 需要的 DTO 结构是 { rules: InputReviewRuleDto[] }
-      await this.reviewSettingsService.setReviewRules(userId, {
-        rules: dto.reviewRules,
-      });
-      this.logger.log(`已更新用户 ${userId} 的复习规则`);
-
-      // 2. 更新通知设置 (dto.notificationSettings 对象现在是必填的)
-      // 其内部属性 (globalNotification, etc.) 仍然是可选的。
-      const { globalNotification, emailNotification, inAppNotification } =
-        dto.notificationSettings;
-
-      const updateData: Prisma.SettingUpdateInput = {};
-      if (globalNotification !== undefined) {
-        updateData.globalNotification = globalNotification;
-      }
-      if (emailNotification !== undefined) {
-        updateData.emailNotification = emailNotification;
-      }
-      if (inAppNotification !== undefined) {
-        updateData.inAppNotification = inAppNotification;
-      }
-
       await this.prisma.setting.upsert({
         where: { userId },
-        update: updateData,
+        update: dto,
         create: {
           userId,
-          // 如果 dto.notificationSettings 中的字段为 undefined (即客户端未提供该可选字段),
-          // Prisma 将使用 schema.prisma 中定义的 @default 值。
-          // 如果 schema.prisma 中没有定义 @default，并且你希望在此处有显式默认值(例如 true),
-          // 则应使用: globalNotification: globalNotification ?? true,
-          // 这里假设 Prisma Schema 已为这些字段设置了合适的默认值。
-          globalNotification: globalNotification,
-          emailNotification: emailNotification,
-          inAppNotification: inAppNotification,
+          ...dto,
         },
       });
-      this.logger.log(`已处理用户 ${userId} 的通知设置`);
-
-      return { message: '用户设置更新成功' };
+      return { message: '通知设置更新成功' };
     } catch (error) {
       this.logger.error(
-        `更新用户 ${userId} 的复习和通知设置失败: ${error.message}`,
+        `更新用户 ${userId} 的通知标志失败: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException('更新通知设置失败');
+    }
+  }
+
+  /**
+   * 更新用户的复习规则
+   * @param userId - 用户ID
+   * @param rules - 复习规则数组
+   */
+  async updateReviewRules(
+    userId: string,
+    rules: ReviewRuleDto[],
+  ): Promise<{ message: string }> {
+    this.logger.log(`正在更新用户 ${userId} 的复习规则`);
+    try {
+      await this.reviewSettingsService.setReviewRules(userId, {
+        rules: rules,
+      });
+      return { message: '复习规则更新成功' };
+    } catch (error) {
+      this.logger.error(
+        `更新用户 ${userId} 的复习规则失败: ${error.message}`,
         error.stack,
       );
       if (error instanceof NotFoundException) {
         throw error;
       }
-      throw new InternalServerErrorException('更新用户设置失败');
+      throw new InternalServerErrorException('更新复习规则失败');
+    }
+  }
+
+  /**
+   * 获取用户的所有学习时间段
+   */
+  async getStudyTimeWindows(userId: string): Promise<StudyTimeWindow[]> {
+    return await this.prisma.studyTimeWindow.findMany({
+      where: { userId },
+      orderBy: { startTime: 'asc' },
+    });
+  }
+
+  /**
+   * 创建新的学习时间段
+   */
+  async createStudyTimeWindow(
+    userId: string,
+    dto: CreateStudyTimeWindowDto,
+  ): Promise<StudyTimeWindow> {
+    // 验证结束时间是否晚于开始时间
+    if (dto.startTime >= dto.endTime) {
+      throw new BadRequestException('结束时间必须晚于开始时间');
+    }
+
+    return await this.prisma.studyTimeWindow.create({
+      data: {
+        ...dto,
+        userId,
+      },
+    });
+  }
+
+  /**
+   * 更新学习时间段
+   */
+  async updateStudyTimeWindow(
+    id: string,
+    dto: UpdateStudyTimeWindowDto,
+  ): Promise<StudyTimeWindow> {
+    const existingWindow = await this.prisma.studyTimeWindow.findUnique({
+      where: { id },
+    });
+    if (!existingWindow) {
+      throw new NotFoundException('找不到指定的时间段');
+    }
+
+    const newStartTime = dto.startTime ?? existingWindow.startTime;
+    const newEndTime = dto.endTime ?? existingWindow.endTime;
+
+    if (newStartTime >= newEndTime) {
+      throw new BadRequestException('结束时间必须晚于开始时间');
+    }
+
+    return this.prisma.studyTimeWindow.update({
+      where: { id },
+      data: dto,
+    });
+  }
+
+  /**
+   * 删除学习时间段
+   */
+  async deleteStudyTimeWindow(id: string): Promise<{ message: string }> {
+    try {
+      await this.prisma.studyTimeWindow.delete({ where: { id } });
+      return { message: '学习时间段已删除' };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('找不到要删除的时间段');
+      }
+      throw new InternalServerErrorException('删除失败');
     }
   }
 }

@@ -33,6 +33,16 @@ export async function getAllStudyRecordsApi(params?: GetStudyRecordsDto) {
 }
 
 /**
+ * 获取学习记录总数
+ */
+export async function getStudyRecordsCountApi() {
+  const response = await request.get<
+    GlobalApiTypes<ReturnType<StudyRecordsController['countAll']>>
+  >('/study-records/count');
+  return response.data.data;
+}
+
+/**
  * 更新学习记录
  */
 export async function updateStudyRecordApi(

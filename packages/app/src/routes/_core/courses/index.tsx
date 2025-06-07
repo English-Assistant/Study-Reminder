@@ -168,30 +168,6 @@ function ManageCoursesComponent() {
       <Spin spinning={loadingCourses} tip="加载中...">
         <Layout className="bg-#fff container mx-auto">
           <Content className="p-6 pt-0">
-            <style>
-              {`
-            .course-grid-container {
-              display: grid;
-              gap: 24px;
-              grid-template-columns: repeat(1, 1fr); /* xs: 1 column */
-            }
-            @media (min-width: 576px) { /* sm: 2 columns */
-              .course-grid-container {
-                grid-template-columns: repeat(2, 1fr);
-              }
-            }
-            @media (min-width: 768px) { /* md: 3 columns */
-              .course-grid-container {
-                grid-template-columns: repeat(3, 1fr);
-              }
-            }
-            @media (min-width: 1200px) { /* xl: 4 columns */
-              .course-grid-container {
-                grid-template-columns: repeat(4, 1fr);
-              }
-            }
-          `}
-            </style>
             <Row
               justify="space-between"
               align="middle"
@@ -235,7 +211,7 @@ function ManageCoursesComponent() {
               </Col>
             </Row>
 
-            <div className="course-grid-container">
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
               <Card
                 hoverable
                 style={{

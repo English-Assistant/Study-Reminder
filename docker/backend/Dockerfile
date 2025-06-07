@@ -50,6 +50,10 @@ COPY --chown=node:node --from=builder /app/packages/interface/emails ./packages/
 # ⚠️ 重新生成 Prisma Client
 RUN pnpm --filter @y/interface exec prisma generate
 
+# 复制 entrypoint 脚本并赋予执行权限
+COPY --chown=node:node docker/backend/entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
 # 切换到非 root 用户
 USER node
 
@@ -59,5 +63,5 @@ WORKDIR /app/packages/interface
 ENV NODE_ENV=production
 EXPOSE 3001
 
-# 直接运行编译后的 JavaScript 文件
-# CMD ["node", "dist/src/main"]
+# 将 entrypoint 脚本设置为容器的入口点
+ENTRYPOINT ["/app/entrypoint.sh"]

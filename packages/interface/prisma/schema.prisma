@@ -48,6 +48,7 @@ model User {
   studyRecords StudyRecord[] // 用户的打卡记录
   createdAt    DateTime      @default(now()) // 注册时间
   updatedAt    DateTime      @updatedAt // 最后更新时间
+  studyTimeWindows StudyTimeWindow[] // 用户的学习时间段
 }
 
 /// 设置表：用户通知偏好
@@ -58,6 +59,17 @@ model Setting {
   emailNotification  Boolean @default(true) // 是否开启邮箱通知
   inAppNotification  Boolean @default(true) // 是否开启站内通知
   user               User    @relation(fields: [userId], references: [id])
+}
+
+/// 学习时间段表
+model StudyTimeWindow {
+  id        String @id @default(cuid())
+  userId    String
+  startTime String // "HH:mm" 格式的开始时间
+  endTime   String // "HH:mm" 格式的结束时间
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 /// 复习规则表：用于计算复习提醒时间

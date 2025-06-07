@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/English-Assistant/Study-Reminder/compare/v1.7.0...v1.7.1) (2025-06-07)
+
+
+### Bug Fixes
+
+* 修复docker构建找不到对应依赖文件 ([5bfb945](https://github.com/English-Assistant/Study-Reminder/commit/5bfb94563b099a61ea758600f408cc4e96720941))
+
 ## [1.7.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.6.0...v1.7.0) (2025-06-07)
 
 

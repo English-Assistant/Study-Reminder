@@ -1,7 +1,7 @@
 {
   "name": "study-reminder",
   "private": true,
-  "version": "1.7.0",
+  "version": "1.7.1",
   "type": "module",
   "description": "Study reminder application with Docker deployment automation",
   "scripts": {

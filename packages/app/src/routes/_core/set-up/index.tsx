@@ -14,7 +14,7 @@ import { AccountSettings } from './-account-settings.tsx';
 import { NotificationSettings } from './-notification-settings.tsx';
 import { ReviewRulesSettings } from './-review-rules-settings.tsx';
 import { StudyTimeWindows } from './-study-time-windows.tsx';
-import { defaultReviewRules } from '@y/interface/common/constants/review.constants.js';
+import { defaultReviewRules } from '@y/interface/common/constants/review.constants.ts';
 
 export const Route = createFileRoute('/_core/set-up/')({
   component: SettingsComponent,

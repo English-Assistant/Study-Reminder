@@ -12,6 +12,7 @@ WORKDIR /app
 COPY pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY package.json ./
 COPY packages/app/package.json ./packages/app/
+COPY packages/interface ./packages/interface/
 
 # 安装依赖
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.6.0...v1.7.0) (2025-06-07)
+
+
+### Features
+
+* 添加用户注销功能，支持发送验证码确认注销，更新相关API和前端设置界面 ([5ec81c2](https://github.com/English-Assistant/Study-Reminder/commit/5ec81c252d5a30485514197745eaf9c365d1c843))
+
 ## [1.6.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.5.0...v1.6.0) (2025-06-06)
 
 

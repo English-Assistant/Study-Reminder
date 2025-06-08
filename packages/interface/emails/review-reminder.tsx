@@ -23,7 +23,9 @@ export const ReviewReminderEmail = ({
   return (
     <Html>
       <Head />
-      <Preview>复习提醒：{itemName}</Preview>
+      <Preview>
+        复习提醒: {itemName} - {courseName}
+      </Preview>
       <Body style={main}>
         <Container style={container}>
           <Text style={greeting}>Hey, {userName}</Text>

@@ -182,8 +182,8 @@ export class NotificationsService {
             if (user.settings.inAppNotification) {
               try {
                 this.sendInAppNotification(user.id, {
-                  title: '复习提醒',
-                  body: `现在需要复习 ${reviewDetails.itemName} - ${reviewDetails.courseName} 了`,
+                  title: `复习提醒: ${reviewDetails.itemName} - ${reviewDetails.courseName}`,
+                  body: `现在是计划的复习时间，请完成复习。`,
                   tag: reviewDetails.itemName,
                 });
 

@@ -52,10 +52,13 @@ export class MailService {
       courseName,
     });
 
+    const subject = `复习提醒: ${itemName} - ${courseName}`;
+
     await this.sendMail({
       email,
-      subject: `复习提醒: ${itemName}`,
+      subject,
       template,
+      text: subject,
     });
   }
 

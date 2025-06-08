@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.8.0...v1.9.0) (2025-06-08)
+
+
+### Features
+
+* 更新复习提醒邮件和通知内容，包含课程名称以增强信息清晰度 ([ab9db72](https://github.com/English-Assistant/Study-Reminder/commit/ab9db7273b9a46fe70e09def8977fa1f213e7efa))
+
 ## [1.8.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.7.1...v1.8.0) (2025-06-08)
 
 

@@ -17,7 +17,7 @@ import {
   VerificationCodeType,
 } from '../verification-code/verification-code.service';
 import { defaultReviewRules } from '../common/constants/review.constants';
-import { Prisma } from '@prisma/client';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class AuthService {
@@ -307,13 +307,14 @@ export class AuthService {
    */
   private async createDefaultReviewRules(userId: string): Promise<void> {
     const defaultRulesData = defaultReviewRules.map((rule) => ({
+      id: uuidv4(),
       ...rule,
       userId,
     }));
 
     try {
       await this.prisma.reviewRule.createMany({
-        data: defaultRulesData as Prisma.ReviewRuleCreateManyInput[],
+        data: defaultRulesData,
       });
       this.logger.log(`为用户 ${userId} 创建了默认复习规则`);
     } catch (error) {

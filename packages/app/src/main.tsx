@@ -4,28 +4,28 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import 'virtual:uno.css';
 import { ConfigProvider, App as AntApp } from 'antd';
-import zhCN from 'antd/locale/zh_CN'; // for date-picker i18n
+import zhCN from 'antd/locale/zh_CN'; // 用于日期选择器的国际化
 import 'dayjs/locale/zh-cn';
 import dayjs from 'dayjs';
 import '@unocss/reset/tailwind-compat.css';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
 
-// Import the generated route tree
+// 导入生成的路由树
 import { routeTree } from './routeTree.gen';
 
-dayjs.locale('zh-cn'); // If not already global, might be needed
+dayjs.locale('zh-cn'); // 如果尚未全局设置，可能需要
 
-// Create a new router instance
+// 创建新的路由实例
 const router = createRouter({ routeTree });
 
-// Register the router instance for type safety
+// 注册路由实例以确保类型安全
 declare module '@tanstack/react-router' {
   interface Register {
     router: typeof router;
   }
 }
 
-// Render the app
+// 渲染应用
 const rootElement = document.getElementById('root')!;
 if (!rootElement.innerHTML) {
   const root = ReactDOM.createRoot(rootElement);
@@ -36,10 +36,10 @@ if (!rootElement.innerHTML) {
           token: {
             colorPrimary: '#7D6CE2',
           },
-          cssVar: true, // Retaining based on previous diff, assess if needed
-          hashed: false, // Retaining based on previous diff, assess if needed
+          cssVar: true,
+          hashed: false,
         }}
-        locale={zhCN} // Removed as zhCN is unused and not requested
+        locale={zhCN}
       >
         <AntApp>
           <RouterProvider router={router} />

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.7.1...v1.8.0) (2025-06-08)
+
+
+### Features
+
+* 添加uuid依赖并在AuthService中使用，更新相关文件以支持新的功能 ([9383634](https://github.com/English-Assistant/Study-Reminder/commit/938363423f9f1dd6d0cbf7c1eb32a15762b83dbf))
+
 ## [1.7.1](https://github.com/English-Assistant/Study-Reminder/compare/v1.7.0...v1.7.1) (2025-06-07)
 
 

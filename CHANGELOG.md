@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.10.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.9.0...v1.10.0) (2025-06-11)
+
+
+### Features
+
+* 添加拖拽排序功能到复习规则设置，更新相关依赖和文档 ([13db9db](https://github.com/English-Assistant/Study-Reminder/commit/13db9db59abf29facf20eeef22a31bb24f2f4a7c))
+* 添加预览图片文件 ([ed13447](https://github.com/English-Assistant/Study-Reminder/commit/ed13447e197cbae43ce12602db337e9a3e6eed6a))
+
 ## [1.9.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.8.0...v1.9.0) (2025-06-08)
 
 

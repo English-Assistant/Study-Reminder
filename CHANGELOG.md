@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.11.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.10.0...v1.11.0) (2025-06-11)
+
+
+### Features
+
+* 优化表单提交逻辑，使用async/await处理异步操作；更新复习规则设置，使用时间戳替代UUID；调整学习记录服务，简化查询逻辑 ([706d126](https://github.com/English-Assistant/Study-Reminder/commit/706d126ff53b7fa92789ed5e515aade972958027))
+
 ## [1.10.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.9.0...v1.10.0) (2025-06-11)
 
 

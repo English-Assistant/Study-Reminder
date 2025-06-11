@@ -4,15 +4,15 @@ import {
   Min,
   IsNotEmpty,
   IsOptional,
-  IsUUID,
   IsString,
+  IsNumber,
 } from 'class-validator';
 import { IntervalUnit, ReviewMode } from '@prisma/client';
 
 export class ReviewRuleDto {
   @IsOptional()
-  @IsUUID('4', { message: 'ID必须是有效的UUID' })
-  id?: string;
+  @IsNumber({}, { message: 'ID必须是数字' })
+  id?: number;
 
   @IsInt({ message: '时间数值必须是整数' })
   @Min(1, { message: '时间数值必须大于0' })

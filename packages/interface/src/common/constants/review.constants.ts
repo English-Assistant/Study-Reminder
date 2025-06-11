@@ -10,10 +10,11 @@ export interface DefaultReviewRule {
 
 export const defaultReviewRules: DefaultReviewRule[] = [
   { value: 1, unit: 'HOUR', mode: 'ONCE' },
+  { value: 8, unit: 'HOUR', mode: 'ONCE' },
   { value: 1, unit: 'DAY', mode: 'ONCE' },
-  { value: 2, unit: 'DAY', mode: 'ONCE' },
   { value: 3, unit: 'DAY', mode: 'ONCE' },
   { value: 7, unit: 'DAY', mode: 'ONCE' },
+  { value: 15, unit: 'DAY', mode: 'ONCE' },
   { value: 30, unit: 'DAY', mode: 'ONCE' },
   { value: 60, unit: 'DAY', mode: 'ONCE' },
   { value: 90, unit: 'DAY', mode: 'ONCE' },

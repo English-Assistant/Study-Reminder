@@ -19,7 +19,7 @@ export class ReviewSettingsService {
     try {
       return await this.prisma.reviewRule.findMany({
         where: { userId },
-        orderBy: { value: 'asc' },
+        orderBy: { id: 'asc' },
       });
     } catch (error) {
       this.logger.error(`获取用户 ${userId} 的复习规则失败: ${error.message}`);
@@ -65,7 +65,7 @@ export class ReviewSettingsService {
 
           return tx.reviewRule.findMany({
             where: { userId },
-            orderBy: { value: 'asc' },
+            orderBy: { id: 'asc' },
           });
         }
         this.logger.log(`用户 ${userId} 的事务: 未提供新规则，返回空数组`);

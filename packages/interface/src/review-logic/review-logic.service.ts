@@ -24,29 +24,26 @@ export class ReviewLogicService {
    * 计算基于单条规则的下一个复习时间。
    * @param studiedAt - 学习记录的完成时间。
    * @param rule - 单条复习规则。
-   * @param now - 当前时间，用于比较。
    * @returns 计算出的下一个复习时间（dayjs 对象），如果已过期或不适用则返回 null。
    */
-  calculateNextReviewTime(
-    studiedAt: Date,
-    rule: ReviewRule,
-    now: dayjs.Dayjs,
-  ): dayjs.Dayjs | null {
+  calculateNextReviewTime(studiedAt: Date, rule: ReviewRule): dayjs.Dayjs {
     const baseTime = dayjs(studiedAt).second(0).millisecond(0);
-    let expectedTime = this.addInterval(baseTime, rule.value, rule.unit);
+    const expectedTime = this.addInterval(baseTime, rule.value, rule.unit);
 
+    // 对于 ONCE 模式，直接返回计算出的时间，不过滤
     if (rule.mode === ReviewMode.ONCE) {
-      return expectedTime.isAfter(now) ? expectedTime : null;
-    }
-
-    if (rule.mode === ReviewMode.RECURRING) {
-      // 对循环提醒，向前滚动直到找到未来的第一个匹配时间点
-      while (expectedTime.isBefore(now) || expectedTime.isSame(now, 'minute')) {
-        expectedTime = this.addInterval(expectedTime, rule.value, rule.unit);
-      }
       return expectedTime;
     }
-    return null;
+
+    // 对于 RECURRING 模式，也先返回第一次的计算时间。
+    // 在上层服务中决定如何处理"已过去"的循环事件。
+    if (rule.mode === ReviewMode.RECURRING) {
+      // 暂时返回第一次，更复杂的逻辑将在上层处理
+      return expectedTime;
+    }
+
+    // 理论上不会到达这里，因为 mode 只有两种
+    return expectedTime;
   }
 
   /**

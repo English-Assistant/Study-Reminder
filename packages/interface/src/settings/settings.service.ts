@@ -33,7 +33,7 @@ export class SettingsService {
         where: { id: userId },
         include: {
           settings: true,
-          reviewRules: { orderBy: { value: 'asc' } },
+          reviewRules: { orderBy: { id: 'asc' } },
         },
       });
 
@@ -149,6 +149,7 @@ export class SettingsService {
       await this.reviewSettingsService.setReviewRules(userId, {
         rules: rules,
       });
+
       return { message: '复习规则更新成功' };
     } catch (error) {
       this.logger.error(

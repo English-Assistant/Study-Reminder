@@ -17,7 +17,6 @@ import {
   VerificationCodeType,
 } from '../verification-code/verification-code.service';
 import { defaultReviewRules } from '../common/constants/review.constants';
-import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class AuthService {
@@ -120,7 +119,16 @@ export class AuthService {
       await this.getUserSettings(newUser.id);
 
       // 创建默认复习规则
-      await this.createDefaultReviewRules(newUser.id);
+      const defaultRulesData = defaultReviewRules.map((rule) => ({
+        value: rule.value,
+        unit: rule.unit,
+        mode: rule.mode,
+        note: rule.note,
+        userId: newUser.id,
+      }));
+      await this.prisma.reviewRule.createMany({
+        data: defaultRulesData,
+      });
 
       const payload = { username: newUser.username, sub: newUser.id };
 
@@ -299,26 +307,6 @@ export class AuthService {
         error instanceof Error ? error.stack : String(error),
       );
       throw new BadRequestException('注销过程中发生错误，请稍后重试');
-    }
-  }
-
-  /**
-   * 创建默认复习规则
-   */
-  private async createDefaultReviewRules(userId: string): Promise<void> {
-    const defaultRulesData = defaultReviewRules.map((rule) => ({
-      id: uuidv4(),
-      ...rule,
-      userId,
-    }));
-
-    try {
-      await this.prisma.reviewRule.createMany({
-        data: defaultRulesData,
-      });
-      this.logger.log(`为用户 ${userId} 创建了默认复习规则`);
-    } catch (error) {
-      this.logger.error(`为用户 ${userId} 创建默认复习规则失败:`, error);
     }
   }
 }

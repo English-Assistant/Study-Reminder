@@ -38,16 +38,16 @@ enum ReviewMode {
 
 /// 用户表：记录账号信息
 model User {
-  id           String        @id @default(cuid()) // 用户ID
-  username     String        @unique // 用户名调整为唯一
-  password     String // 加密后的密码
-  email        String        @unique // 邮箱，唯一且必填
-  settings     Setting? // 一对一设置记录
-  reviewRules  ReviewRule[] // 用户的复习规则
-  courses      Course[] // 用户的课程
-  studyRecords StudyRecord[] // 用户的打卡记录
-  createdAt    DateTime      @default(now()) // 注册时间
-  updatedAt    DateTime      @updatedAt // 最后更新时间
+  id               String            @id @default(cuid()) // 用户ID
+  username         String            @unique // 用户名调整为唯一
+  password         String // 加密后的密码
+  email            String            @unique // 邮箱，唯一且必填
+  settings         Setting? // 一对一设置记录
+  reviewRules      ReviewRule[] // 用户的复习规则
+  courses          Course[] // 用户的课程
+  studyRecords     StudyRecord[] // 用户的打卡记录
+  createdAt        DateTime          @default(now()) // 注册时间
+  updatedAt        DateTime          @updatedAt // 最后更新时间
   studyTimeWindows StudyTimeWindow[] // 用户的学习时间段
 }
 
@@ -74,13 +74,15 @@ model StudyTimeWindow {
 
 /// 复习规则表：用于计算复习提醒时间
 model ReviewRule {
-  id     String       @id @default(cuid()) // 主键
+  id     Int          @id @default(autoincrement()) // 主键
   userId String
   value  Int // 时间数值
   unit   IntervalUnit // 时间单位：分钟/小时/天
   mode   ReviewMode   @default(ONCE) // 循环 or 一次
   note   String? // 备注
   user   User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId]) // 为 userId 添加索引以提高查询效率
 }
 
 /// 课程表：每个用户可以定义多个课程

@@ -1,4 +1,4 @@
-import { IsString, IsDate } from 'class-validator';
+import { IsString, IsDate, IsNumber } from 'class-validator';
 
 export class UpcomingReviewDto {
   @IsString()
@@ -19,8 +19,8 @@ export class UpcomingReviewDto {
   @IsDate()
   expectedReviewAt!: Date;
 
-  @IsString()
-  ruleId!: string;
+  @IsNumber()
+  ruleId!: number;
 
   @IsString()
   ruleDescription!: string | null;

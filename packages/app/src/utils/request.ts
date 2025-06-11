@@ -84,9 +84,7 @@ request.interceptors.response.use(
           setTimeout(() => {
             window.location.href = '/login'; // 你的登录页路由
           }, 1500);
-          return Promise.reject(
-            new Error(`身份验证失败: ${message}，将跳转到登录页...`),
-          );
+          return Promise.reject(new Error(`身份验证失败，将跳转到登录页...`));
         }
         return Promise.reject(new Error(message));
       } else if ('message' in errorData) {

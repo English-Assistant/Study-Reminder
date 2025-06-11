@@ -21,7 +21,7 @@ export class UpcomingReviewInRecordDto {
   expectedReviewAt: Date; // 预计复习时间
 
   // @ApiProperty({ description: '复习规则ID' })
-  ruleId: string; // 复习规则ID
+  ruleId: number; // 复习规则ID
 
   // @ApiProperty({ description: '复习规则描述' })
   ruleDescription: string | null; // 复习规则描述

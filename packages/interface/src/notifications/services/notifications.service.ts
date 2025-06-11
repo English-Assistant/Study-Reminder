@@ -10,7 +10,6 @@ import {
   Setting,
   StudyRecord,
   ReviewRule,
-  ReviewMode,
   StudyTimeWindow,
 } from '@prisma/client';
 import dayjs from 'dayjs';
@@ -114,49 +113,43 @@ export class NotificationsService {
         }
 
         for (const rule of user.reviewRules) {
-          let expectedNotificationTime: dayjs.Dayjs | null = null;
-          let potentialTime: dayjs.Dayjs;
-
-          if (rule.mode === ReviewMode.ONCE) {
-            potentialTime = this.reviewLogicService.addInterval(
-              baseTime,
-              rule.value,
-              rule.unit,
-            );
-          } else if (rule.mode === ReviewMode.RECURRING) {
-            potentialTime = this.reviewLogicService.addInterval(
-              baseTime,
-              rule.value,
-              rule.unit,
+          let expectedReviewAtDayjs =
+            this.reviewLogicService.calculateNextReviewTime(
+              record.studiedAt,
+              rule,
             );
 
-            if (potentialTime.isAfter(now, 'minute')) {
-              continue;
-            }
-            while (potentialTime.isBefore(now, 'minute')) {
-              potentialTime = this.reviewLogicService.addInterval(
-                potentialTime,
-                rule.value,
-                rule.unit,
-              );
-            }
-          } else {
-            continue;
+          // 如果是循环规则，并且计算出的时间在当前时间之前，
+          // 则需要找到未来的第一个有效复习时间
+          if (
+            rule.mode === 'RECURRING' &&
+            expectedReviewAtDayjs.isBefore(now)
+          ) {
+            const ruleInterval = dayjs.duration(
+              rule.value,
+              rule.unit.toLowerCase() as dayjs.ManipulateType,
+            );
+            const timeDiff = now.diff(expectedReviewAtDayjs);
+            // 向上取整，确保我们找到的是下一个或当前的周期
+            const intervalsToSkip = Math.ceil(
+              timeDiff / ruleInterval.asMilliseconds(),
+            );
+            expectedReviewAtDayjs = expectedReviewAtDayjs.add(
+              intervalsToSkip * ruleInterval.asMilliseconds(),
+              'millisecond',
+            );
           }
 
           const adjustedTime =
             this.reviewLogicService.adjustReviewTimeForStudyWindows(
-              potentialTime,
+              expectedReviewAtDayjs,
               user.studyTimeWindows,
             );
 
+          // 只有当调整后的时间与当前时间在同一分钟时，才发送通知
           if (adjustedTime.isSame(now, 'minute')) {
-            expectedNotificationTime = adjustedTime;
-          }
-
-          if (expectedNotificationTime) {
             this.logger.log(
-              `为用户 ${user.id} 的学习记录 "${record.textTitle}" (ID: ${record.id}) 基于规则 (ID: ${rule.id}) 发现了匹配的提醒时间: ${expectedNotificationTime.toISOString()}`,
+              `为用户 ${user.id} 的学习记录 "${record.textTitle}" (ID: ${record.id}) 基于规则 (ID: ${rule.id}) 发现了匹配的提醒时间: ${adjustedTime.toISOString()}`,
             );
 
             const reviewDetails: ReviewReminderDetails = {

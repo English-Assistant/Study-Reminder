@@ -1,6 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { Form, Spin, App } from 'antd';
-import { v4 as uuidv4 } from 'uuid';
 import { useRequest } from 'ahooks';
 import {
   getUserSettingsApi,
@@ -76,11 +75,13 @@ function SettingsComponent() {
   };
 
   const handleResetRules = () => {
-    const rulesWithIds = defaultReviewRules.map((rule) => ({
+    // 为重置的规则添加一个临时的、仅供前端使用的 key
+    // 这里我们用一个负数的随机值或索引来确保其唯一性且与后端的真实ID不冲突
+    const rulesWithClientKey = defaultReviewRules.map((rule, index) => ({
       ...rule,
-      id: uuidv4(),
+      id: -(index + 1), // 使用负数索引作为临时的、唯一的 key
     }));
-    form.setFieldsValue({ reviewRules: rulesWithIds });
+    form.setFieldsValue({ reviewRules: rulesWithClientKey });
     message.info('规则已重置为默认值，请记得点击保存。');
   };
 

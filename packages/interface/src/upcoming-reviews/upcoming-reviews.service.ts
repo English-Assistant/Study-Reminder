@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+dayjs.extend(duration);
 import { UpcomingReviewDto } from './dto/upcoming-review.dto';
 import { getRuleDescription } from '../common/review-rule.util';
 import { GroupedUpcomingReviewsDto } from './dto/grouped-upcoming-reviews.dto';
@@ -23,8 +25,8 @@ export class UpcomingReviewsService {
     this.logger.log(
       `正在获取用户 ${userId} 在 ${withinDays} 天内的待复习项目。`,
     );
-    const now = dayjs();
-    const endDateLimit = now.add(withinDays, 'day').endOf('day');
+    const startOfToday = dayjs().startOf('day');
+    const endDateLimit = startOfToday.add(withinDays, 'day').endOf('day');
 
     const userWithData = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -64,8 +66,27 @@ export class UpcomingReviewsService {
           this.reviewLogicService.calculateNextReviewTime(
             record.studiedAt,
             rule,
-            now,
           );
+
+        // 如果是循环规则，并且计算出的时间在今天开始之前，
+        // 则需要找到未来的第一个有效复习时间
+        if (
+          rule.mode === 'RECURRING' &&
+          expectedReviewAtDayjs.isBefore(startOfToday)
+        ) {
+          const ruleInterval = dayjs.duration(
+            rule.value,
+            rule.unit.toLowerCase() as dayjs.ManipulateType,
+          );
+          const timeDiff = startOfToday.diff(expectedReviewAtDayjs);
+          const intervalsToSkip = Math.ceil(
+            timeDiff / ruleInterval.asMilliseconds(),
+          );
+          expectedReviewAtDayjs = expectedReviewAtDayjs.add(
+            intervalsToSkip * ruleInterval.asMilliseconds(),
+            'millisecond',
+          );
+        }
 
         if (expectedReviewAtDayjs) {
           expectedReviewAtDayjs =
@@ -77,6 +98,7 @@ export class UpcomingReviewsService {
 
         if (
           expectedReviewAtDayjs &&
+          expectedReviewAtDayjs.isAfter(startOfToday) && // 确保时间在今天零点之后
           expectedReviewAtDayjs.isBefore(endDateLimit)
         ) {
           upcomingReviews.push({

@@ -5,8 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { SetReviewRulesDto } from './dto/set-review-rules.dto';
-import { ReviewRule, Prisma } from '@prisma/client';
-import { InputReviewRuleDto } from './dto/input-review-rule.dto';
+import { ReviewRule } from '@prisma/client';
 
 @Injectable()
 export class ReviewSettingsService {
@@ -43,22 +42,21 @@ export class ReviewSettingsService {
         this.logger.log(`用户 ${userId} 的事务: 旧规则已删除`);
 
         if (rules && rules.length > 0) {
-          const dataToCreate: Prisma.ReviewRuleCreateManyInput[] = rules.map(
-            (rule: InputReviewRuleDto) => ({
-              userId,
-              value: rule.value,
-              unit: rule.unit,
-              mode: rule.mode,
-              note: rule.note,
-            }),
-          );
           this.logger.log(
-            `用户 ${userId} 的事务: 正在创建 ${dataToCreate.length} 条新规则`,
+            `用户 ${userId} 的事务: 正在创建 ${rules.length} 条新规则`,
           );
+          for (const rule of rules) {
+            await tx.reviewRule.create({
+              data: {
+                userId,
+                value: rule.value,
+                unit: rule.unit,
+                mode: rule.mode,
+                note: rule.note,
+              },
+            });
+          }
 
-          await tx.reviewRule.createMany({
-            data: dataToCreate,
-          });
           this.logger.log(
             `用户 ${userId} 的事务: 新规则已创建，正在获取更新后的规则`,
           );

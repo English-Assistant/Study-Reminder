@@ -285,8 +285,7 @@ export class StudyRecordsService {
       },
     });
 
-    // 让我们也查询一下这个用户的所有记录，不限制日期
-    const allRecords = await this.prisma.studyRecord.findMany({
+    await this.prisma.studyRecord.findMany({
       where: {
         userId,
       },
@@ -299,9 +298,6 @@ export class StudyRecordsService {
         studiedAt: 'desc',
       },
     });
-
-    console.log('用户的所有记录:', allRecords);
-
     if (records.length === 0) {
       return 0;
     }

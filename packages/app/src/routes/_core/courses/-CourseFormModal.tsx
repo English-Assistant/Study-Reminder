@@ -69,20 +69,13 @@ const CourseFormModal: React.FC<CourseFormModalProps> = ({
     }
   }, [initialData, form, open]);
 
-  const handleFormSubmit = () => {
-    form
-      .validateFields()
-      .then((values) => {
-        // Ensure color is a hex string before submitting
-        const finalColor =
-          typeof colorValue === 'string'
-            ? colorValue
-            : (colorValue as Color).toHexString();
-        onSubmit({ ...values, color: finalColor });
-      })
-      .catch((info) => {
-        console.log('Validate Failed:', info);
-      });
+  const handleFormSubmit = async () => {
+    const values = await form.validateFields();
+    const finalColor =
+      typeof colorValue === 'string'
+        ? colorValue
+        : (colorValue as Color).toHexString();
+    onSubmit({ ...values, color: finalColor });
   };
 
   // Handles color change from both predefined buttons and ColorPicker

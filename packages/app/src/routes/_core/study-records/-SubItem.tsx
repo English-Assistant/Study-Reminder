@@ -54,10 +54,12 @@ export const SubItem: FC<Props> = ({
               >
                 <Tag
                   color={item.course?.color || 'blue'}
-                  className="w-100% m-0! flex flex-justify-between p-2"
+                  className="w-100% m-0! p-2"
                 >
-                  <div>{item.textTitle}</div>
-                  <div>{item.course?.name}</div>
+                  <div className="flex flex-justify-between ">
+                    <div>{item.textTitle}</div>
+                    <div>{item.course?.name}</div>
+                  </div>
                 </Tag>
               </Tooltip>
             </li>
@@ -81,6 +83,7 @@ export const SubItem: FC<Props> = ({
               <div>{item.textTitle}</div>
               <div>{item.course.name}</div>
             </div>
+
             {!!item.ruleDescription && <div>{item.ruleDescription}</div>}
           </li>
         );

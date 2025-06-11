@@ -18,7 +18,6 @@ import {
   UndoOutlined,
 } from '@ant-design/icons';
 import type { FormInstance, FormListFieldData } from 'antd';
-import { v4 as uuidv4 } from 'uuid';
 import type { ReviewRuleDto } from '@y/interface/review-settings/dto/review-rule.dto.js';
 import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import {
@@ -45,7 +44,6 @@ const SortableItem = ({
   field,
   index,
   fields,
-  globalRemindersFormEnabled,
   remove,
 }: {
   field: FormListFieldData;
@@ -80,7 +78,6 @@ const SortableItem = ({
         ...style,
         padding: '12px 0',
         borderBottom: index < fields.length - 1 ? '1px solid #f0f0f0' : 'none',
-        opacity: !globalRemindersFormEnabled ? 0.5 : 1,
       }}
       {...attributes}
     >
@@ -208,7 +205,7 @@ export function ReviewRulesSettings({
                 className="px-0!"
                 onClick={() =>
                   add({
-                    id: uuidv4(),
+                    id: Date.now(),
                     value: 1,
                     unit: 'DAY',
                     mode: 'ONCE',

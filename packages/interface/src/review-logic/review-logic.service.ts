@@ -58,34 +58,33 @@ export class ReviewLogicService {
     windows: StudyTimeWindow[],
   ): dayjs.Dayjs {
     if (!windows || windows.length === 0) {
-      return reviewTime; // 如果未设置时间窗口，则认为全天有效。
+      return reviewTime; // 如果未设置时间窗口，则返回原始计算时间
     }
 
+    // 1. 将所有窗口的开始和结束时间字符串转换为当天的 Dayjs 对象
     const todayWindows = windows
       .map((w) => {
         const [startH, startM] = w.startTime.split(':').map(Number);
         const [endH, endM] = w.endTime.split(':').map(Number);
+        // 基于 reviewTime 的日期，但使用窗口的小时和分钟
         return {
-          start: reviewTime.hour(startH).minute(startM).second(0),
-          end: reviewTime.hour(endH).minute(endM).second(0),
+          start: reviewTime
+            .hour(startH)
+            .minute(startM)
+            .second(0)
+            .millisecond(0),
+          end: reviewTime.hour(endH).minute(endM).second(0).millisecond(0),
         };
       })
+      // 2. 按开始时间对窗口进行排序
       .sort((a, b) => a.start.valueOf() - b.start.valueOf());
 
-    for (const window of todayWindows) {
-      if (reviewTime.isBetween(window.start, window.end, null, '[]')) {
-        return reviewTime;
-      }
-    }
+    // 3. 找到第一个可用的复习时间点
+    // 逻辑：复习时间应该被安排在当天第一个可用时间窗口的开始
+    const firstWindowStartTime = todayWindows[0].start;
 
-    for (const window of todayWindows) {
-      if (reviewTime.isBefore(window.start)) {
-        return window.start;
-      }
-    }
-
-    const tomorrowFirstWindow = todayWindows[0];
-    return tomorrowFirstWindow.start.add(1, 'day');
+    // 直接将复习时间设置为第一个窗口的开始时间
+    return firstWindowStartTime;
   }
 
   /**

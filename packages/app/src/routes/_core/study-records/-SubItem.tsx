@@ -66,25 +66,36 @@ export const SubItem: FC<Props> = ({
           );
         }
         return (
-          <li
-            key={item._key}
-            className="cursor-default pos-relative pl-3"
-            title={`复习时间：${dayjs(item.expectedReviewAt).format(
-              'YYYY-MM-DD HH:mm',
-            )}`}
-          >
-            <div
-              className="w-1 pos-absolute top-0 bottom-0 left-0"
-              style={{
-                background: item.course.color!,
-              }}
-            ></div>
-            <div className="flex flex-justify-between">
-              <div>{item.textTitle}</div>
-              <div>{item.course.name}</div>
-            </div>
-
-            {!!item.ruleDescription && <div>{item.ruleDescription}</div>}
+          <li key={item._key} className="cursor-default pos-relative pl-3">
+            <Tooltip
+              placement="leftTop"
+              title={`复习时间：${dayjs(item.expectedReviewAt).format(
+                'YYYY-MM-DD HH:mm',
+              )}`}
+            >
+              <div>
+                <div
+                  className="w-1 pos-absolute top-0 bottom-0 left-0"
+                  style={{
+                    background: item.course.color!,
+                  }}
+                ></div>
+                <div className="flex flex-justify-between">
+                  <div>{item.textTitle}</div>
+                  <div className="ml-1">{item.course.name}</div>
+                </div>
+                <div className="flex items-center">
+                  <div className="flex-1 break-words whitespace-normal overflow-hidden">
+                    {!!item.ruleDescription && (
+                      <div>{item.ruleDescription}</div>
+                    )}
+                  </div>
+                  <div className="ml-1">
+                    {dayjs(item.expectedReviewAt).format('HH:mm')}
+                  </div>
+                </div>
+              </div>
+            </Tooltip>
           </li>
         );
       })}

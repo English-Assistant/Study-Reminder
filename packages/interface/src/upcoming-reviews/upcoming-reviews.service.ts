@@ -139,7 +139,9 @@ export class UpcomingReviewsService {
             courseId,
             courseName: courseReviews[0].courseName, // 同一个课程的信息是一样的
             courseColor: courseReviews[0].courseColor,
-            reviews: sortBy(courseReviews, 'expectedReviewAt').map((r) => ({
+            reviews: sortBy(courseReviews, (r) =>
+              dayjs(r.expectedReviewAt).valueOf(),
+            ).map((r) => ({
               studyRecordId: r.studyRecordId,
               textTitle: r.textTitle,
               expectedReviewAt: r.expectedReviewAt,

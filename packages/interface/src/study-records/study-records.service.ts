@@ -7,7 +7,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { StudyRecord, Prisma, ReviewRule, ReviewMode } from '@prisma/client';
+import { StudyRecord, Prisma } from '@prisma/client';
 import { CreateStudyRecordDto } from './dto/create-study-record.dto';
 import { UpdateStudyRecordDto } from './dto/update-study-record.dto';
 import dayjs from 'dayjs';
@@ -20,8 +20,8 @@ import {
 } from './dto/study-record-with-reviews.dto';
 import { isEmpty, sortBy, groupBy, map, orderBy } from 'lodash';
 import { getRuleDescription } from '../common/review-rule.util';
-import { addInterval } from '../common/date.util';
 import { GroupedStudyRecordsDto } from './dto/grouped-study-records.dto';
+import { ReviewLogicService } from '../review-logic/review-logic.service';
 
 dayjs.extend(customParseFormat);
 dayjs.extend(isSameOrAfter);
@@ -31,7 +31,10 @@ dayjs.extend(isSameOrBefore);
 export class StudyRecordsService {
   private readonly logger = new Logger(StudyRecordsService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly reviewLogicService: ReviewLogicService,
+  ) {}
 
   async create(
     userId: string,
@@ -249,11 +252,8 @@ export class StudyRecordsService {
   async remove(id: string, userId: string): Promise<void> {
     this.logger.log(`用户 ${userId} 正在删除学习记录 ${id}`);
     await this.findOne(id, userId);
-
     try {
-      await this.prisma.studyRecord.delete({
-        where: { id },
-      });
+      await this.prisma.studyRecord.delete({ where: { id } });
     } catch (error) {
       this.logger.error(
         `删除用户 ${userId} 的学习记录 ${id} 失败：${error.message}`,
@@ -267,66 +267,48 @@ export class StudyRecordsService {
   }
 
   async getConsecutiveStudyDays(userId: string): Promise<number> {
-    const today = dayjs().startOf('day');
-    const todayEnd = dayjs().endOf('day'); // 使用当天的结束时间
-
+    this.logger.log(`正在计算用户 ${userId} 的连续学习天数`);
     const records = await this.prisma.studyRecord.findMany({
-      where: {
-        userId,
-        studiedAt: {
-          lte: todayEnd.toDate(), // 使用当天结束时间，确保包含今天的所有记录
-        },
-      },
-      orderBy: {
-        studiedAt: 'desc',
-      },
-      select: {
-        studiedAt: true,
-      },
+      where: { userId },
+      orderBy: { studiedAt: 'desc' },
+      select: { studiedAt: true },
     });
 
-    await this.prisma.studyRecord.findMany({
-      where: {
-        userId,
-      },
-      select: {
-        id: true,
-        studiedAt: true,
-        textTitle: true,
-      },
-      orderBy: {
-        studiedAt: 'desc',
-      },
-    });
     if (records.length === 0) {
       return 0;
     }
 
-    // 将所有学习日期转换为日期字符串集合
-    const studyDates = new Set<string>();
-    records.forEach((record) => {
-      studyDates.add(dayjs(record.studiedAt).format('YYYY-MM-DD'));
-    });
+    const uniqueDays = [
+      ...new Set(
+        records.map((r) => dayjs(r.studiedAt).startOf('day').toISOString()),
+      ),
+    ].map((dateStr) => dayjs(dateStr));
 
-    let consecutiveDays = 0;
-    let currentDate = today.clone();
-
-    // 检查今天是否有打卡
-    const todayStr = today.format('YYYY-MM-DD');
-    if (studyDates.has(todayStr)) {
-      // 今天有打卡，从1开始计算
-      consecutiveDays = 1;
-      currentDate = today.subtract(1, 'day'); // 从昨天开始检查
-    } else {
-      // 今天没有打卡，从0开始，但检查昨天开始的连续天数
-      consecutiveDays = 0;
-      currentDate = today.subtract(1, 'day'); // 从昨天开始检查
+    if (uniqueDays.length <= 1) {
+      return uniqueDays.length;
     }
 
-    // 向前查找连续的打卡日期
-    while (studyDates.has(currentDate.format('YYYY-MM-DD'))) {
-      consecutiveDays++;
-      currentDate = currentDate.subtract(1, 'day');
+    uniqueDays.sort((a, b) => b.diff(a));
+
+    let consecutiveDays = 1;
+    const today = dayjs().startOf('day');
+    const lastStudyDay = uniqueDays[0];
+
+    if (
+      !lastStudyDay.isSame(today) &&
+      !lastStudyDay.isSame(today.subtract(1, 'day'))
+    ) {
+      return 0;
+    }
+
+    for (let i = 0; i < uniqueDays.length - 1; i++) {
+      const currentDay = uniqueDays[i];
+      const nextDay = uniqueDays[i + 1];
+      if (currentDay.subtract(1, 'day').isSame(nextDay)) {
+        consecutiveDays++;
+      } else {
+        break;
+      }
     }
 
     return consecutiveDays;
@@ -343,11 +325,6 @@ export class StudyRecordsService {
 
     const monthStart = dayjs(`${year}-${month}-01`).startOf('month');
     const monthEnd = monthStart.endOf('month');
-
-    // 扩展复习计划计算范围：前后一个月
-    // 这样可以包含日历界面显示的相邻月份的复习提醒
-    const reviewRangeStart = monthStart.subtract(1, 'month').startOf('month');
-    const reviewRangeEnd = monthEnd.add(1, 'month').endOf('month');
 
     const studyRecordSelectScope = {
       id: true,
@@ -367,94 +344,106 @@ export class StudyRecordsService {
       },
     };
 
-    // 获取当月学习的记录（按 studiedAt 过滤）
-    const recordsInMonthModels = await this.prisma.studyRecord.findMany({
-      where: {
-        userId,
-        studiedAt: {
-          gte: monthStart.toDate(),
-          lte: monthEnd.toDate(),
+    const userWithData = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        studyRecords: {
+          select: studyRecordSelectScope,
+          orderBy: { studiedAt: 'desc' },
         },
-      },
-      select: studyRecordSelectScope,
-      orderBy: {
-        studiedAt: 'asc',
+        reviewRules: true,
+        studyTimeWindows: true,
       },
     });
 
-    // 获取复习规则
-    const reviewRules = await this.prisma.reviewRule.findMany({
-      where: { userId },
-    });
-
-    // 如果没有复习规则，直接返回学习记录
-    if (isEmpty(reviewRules)) {
-      return recordsInMonthModels.map(this.mapToDto);
+    if (!userWithData) {
+      this.logger.warn(`未找到用户 ${userId} 的数据。`);
+      return [];
     }
 
-    // 获取所有学习记录（用于计算复习计划）
-    const allStudyRecordsWithCourse = await this.prisma.studyRecord.findMany({
-      where: { userId },
-      select: studyRecordSelectScope,
-    });
+    const { studyRecords, reviewRules, studyTimeWindows } = userWithData;
 
-    // 找出所有在扩展时间范围内有复习计划的学习记录
-    const recordsWithReviewsInRange = new Set<string>();
-
-    allStudyRecordsWithCourse.forEach((record) => {
-      if (!record.course) return;
-
-      reviewRules.forEach((rule) => {
-        const reviewItems = this.calculateReviewsForRule(
-          {
-            id: record.id,
-            textTitle: record.textTitle,
-            studiedAt: record.studiedAt,
-            course: record.course,
-          },
-          rule,
-          reviewRangeStart,
-          reviewRangeEnd,
-        );
-
-        // 如果这个记录在扩展范围内有复习计划，标记它
-        if (reviewItems.length > 0) {
-          recordsWithReviewsInRange.add(record.id);
-        }
-      });
-    });
-
-    // 合并当月学习记录和有复习计划的记录
-    const allRelevantRecords = new Map<string, any>();
-
-    // 添加当月学习记录
-    recordsInMonthModels.forEach((record) => {
-      allRelevantRecords.set(record.id, record);
-    });
-
-    // 添加有复习计划的记录
-    allStudyRecordsWithCourse.forEach((record) => {
-      if (recordsWithReviewsInRange.has(record.id)) {
-        allRelevantRecords.set(record.id, record);
-      }
-    });
-
-    // 初始化结果映射
-    const recordsInMonthMap = new Map<string, StudyRecordWithReviewsDto>();
-    Array.from(allRelevantRecords.values()).forEach((record) => {
-      recordsInMonthMap.set(record.id, this.mapToDto(record));
-    });
-
-    // 计算复习计划 - 使用扩展的时间范围
-    this.calculateReviewsForRecords(
-      allStudyRecordsWithCourse,
-      reviewRules,
-      reviewRangeStart, // 前一个月开始
-      reviewRangeEnd, // 后一个月结束
-      recordsInMonthMap,
+    const recordsInMonth = studyRecords.filter((record) =>
+      dayjs(record.studiedAt).isBetween(monthStart, monthEnd, null, '[]'),
     );
 
-    // 排序并返回结果
+    if (isEmpty(reviewRules)) {
+      return recordsInMonth.map(this.mapToDto);
+    }
+
+    const recordsInMonthMap = new Map<string, StudyRecordWithReviewsDto>(
+      recordsInMonth.map((r) => [r.id, this.mapToDto(r)]),
+    );
+
+    for (const record of studyRecords) {
+      if (!record.course) continue;
+
+      for (const rule of reviewRules) {
+        let expectedReviewAtDayjs =
+          this.reviewLogicService.calculateNextReviewTime(
+            record.studiedAt,
+            rule,
+          );
+
+        if (
+          rule.mode === 'RECURRING' &&
+          expectedReviewAtDayjs.isBefore(monthStart)
+        ) {
+          const ruleInterval = dayjs.duration(
+            rule.value,
+            rule.unit.toLowerCase() as dayjs.ManipulateType,
+          );
+          if (ruleInterval.asMilliseconds() <= 0) continue;
+          const timeDiff = monthStart.diff(expectedReviewAtDayjs);
+          const intervalsToSkip = Math.ceil(
+            timeDiff / ruleInterval.asMilliseconds(),
+          );
+          expectedReviewAtDayjs = expectedReviewAtDayjs.add(
+            intervalsToSkip * ruleInterval.asMilliseconds(),
+            'millisecond',
+          );
+        }
+
+        while (expectedReviewAtDayjs.isBefore(monthEnd)) {
+          const adjustedTime =
+            this.reviewLogicService.adjustReviewTimeForStudyWindows(
+              expectedReviewAtDayjs,
+              studyTimeWindows,
+            );
+
+          if (adjustedTime.isBetween(monthStart, monthEnd, null, '[]')) {
+            const reviewItem: UpcomingReviewInRecordDto = {
+              studyRecordId: record.id,
+              textTitle: record.textTitle,
+              course: record.course,
+              expectedReviewAt: adjustedTime.toDate(),
+              ruleId: rule.id,
+              ruleDescription: getRuleDescription(rule),
+            };
+
+            let dto = recordsInMonthMap.get(record.id);
+            if (!dto) {
+              dto = this.mapToDto(record);
+              recordsInMonthMap.set(record.id, dto);
+            }
+            dto.upcomingReviewsInMonth.push(reviewItem);
+          }
+
+          if (rule.mode !== 'RECURRING') break;
+
+          const ruleInterval = dayjs.duration(
+            rule.value,
+            rule.unit.toLowerCase() as dayjs.ManipulateType,
+          );
+          if (ruleInterval.asMilliseconds() <= 0) break;
+          expectedReviewAtDayjs = expectedReviewAtDayjs.add(
+            ruleInterval.asMilliseconds(),
+            'millisecond',
+          );
+        }
+      }
+    }
+
     const finalResults = Array.from(recordsInMonthMap.values()).map(
       (record) => ({
         ...record,
@@ -500,181 +489,4 @@ export class StudyRecordsService {
       : null,
     upcomingReviewsInMonth: [],
   });
-
-  private calculateReviewsForRecords(
-    allStudyRecords: Array<{
-      id: string;
-      userId: string;
-      courseId: string;
-      textTitle: string;
-      note: string | null;
-      studiedAt: Date;
-      createdAt: Date;
-      course: {
-        id: string;
-        name: string;
-        color: string | null;
-        note: string | null;
-      } | null;
-    }>,
-    reviewRules: ReviewRule[],
-    monthStart: dayjs.Dayjs,
-    monthEnd: dayjs.Dayjs,
-    recordsInMonthMap: Map<string, StudyRecordWithReviewsDto>,
-  ): void {
-    // 过滤掉没有课程信息的记录，并确保类型安全
-    const validRecords = allStudyRecords.filter(
-      (
-        record,
-      ): record is {
-        id: string;
-        userId: string;
-        courseId: string;
-        textTitle: string;
-        note: string | null;
-        studiedAt: Date;
-        createdAt: Date;
-        course: {
-          id: string;
-          name: string;
-          color: string | null;
-          note: string | null;
-        };
-      } => {
-        if (!record.course) {
-          this.logger.warn(
-            `学习记录 ${record.id} (标题: ${record.textTitle}) 用户 ${record.userId} 缺少课程数据。跳过复习计算。`,
-          );
-          return false;
-        }
-        return true;
-      },
-    );
-
-    // 为每个记录和规则计算复习计划
-    validRecords.forEach((record) => {
-      reviewRules.forEach((rule) => {
-        const reviewItems = this.calculateReviewsForRule(
-          {
-            id: record.id,
-            textTitle: record.textTitle,
-            studiedAt: record.studiedAt,
-            course: record.course,
-          },
-          rule,
-          monthStart,
-          monthEnd,
-        );
-
-        // 将复习计划添加到对应的记录中
-        reviewItems.forEach((reviewItem) => {
-          const targetRecord = recordsInMonthMap.get(record.id);
-          if (targetRecord) {
-            targetRecord.upcomingReviewsInMonth.push(reviewItem);
-          }
-        });
-      });
-    });
-  }
-
-  private calculateReviewsForRule(
-    record: {
-      id: string;
-      textTitle: string;
-      studiedAt: Date;
-      course: {
-        id: string;
-        name: string;
-        color: string | null;
-        note: string | null;
-      };
-    },
-    rule: ReviewRule,
-    monthStart: dayjs.Dayjs,
-    monthEnd: dayjs.Dayjs,
-  ): UpcomingReviewInRecordDto[] {
-    const baseTime = dayjs(record.studiedAt).second(0).millisecond(0);
-    const firstReviewTime = addInterval(baseTime, rule.value, rule.unit);
-
-    const reviews: UpcomingReviewInRecordDto[] = [];
-
-    if (rule.mode === ReviewMode.ONCE) {
-      if (
-        firstReviewTime.isSameOrAfter(monthStart) &&
-        firstReviewTime.isSameOrBefore(monthEnd)
-      ) {
-        reviews.push(this.createReviewItem(record, rule, firstReviewTime));
-      }
-    } else if (rule.mode === ReviewMode.RECURRING) {
-      let currentReviewTime = firstReviewTime;
-      let iterationCount = 0;
-      const maxIterations = 1000; // 防止无限循环
-
-      while (
-        currentReviewTime.isSameOrBefore(monthEnd) &&
-        iterationCount < maxIterations
-      ) {
-        if (
-          currentReviewTime.isSameOrAfter(monthStart) &&
-          currentReviewTime.isSameOrAfter(baseTime)
-        ) {
-          reviews.push(this.createReviewItem(record, rule, currentReviewTime));
-        }
-
-        const nextReviewTime = addInterval(
-          currentReviewTime,
-          rule.value,
-          rule.unit,
-        );
-
-        // 防止无限循环
-        if (nextReviewTime.isSame(currentReviewTime)) {
-          this.logger.warn(
-            `检测到记录 ${record.id} 和规则 ${rule.id} 在时间 ${currentReviewTime.toISOString()} 可能存在无限循环。中断执行。`,
-          );
-          break;
-        }
-
-        currentReviewTime = nextReviewTime;
-        iterationCount++;
-      }
-
-      if (iterationCount >= maxIterations) {
-        this.logger.warn(
-          `记录 ${record.id} 和规则 ${rule.id} 达到最大迭代次数。已阻止可能的无限循环。`,
-        );
-      }
-    }
-
-    return reviews;
-  }
-
-  private createReviewItem(
-    record: {
-      id: string;
-      textTitle: string;
-      course: {
-        id: string;
-        name: string;
-        color: string | null;
-        note: string | null;
-      };
-    },
-    rule: ReviewRule,
-    reviewTime: dayjs.Dayjs,
-  ): UpcomingReviewInRecordDto {
-    return {
-      studyRecordId: record.id,
-      textTitle: record.textTitle,
-      course: {
-        id: record.course.id,
-        name: record.course.name,
-        color: record.course.color,
-        note: record.course.note,
-      },
-      expectedReviewAt: reviewTime.toDate(),
-      ruleId: rule.id,
-      ruleDescription: getRuleDescription(rule),
-    };
-  }
 }

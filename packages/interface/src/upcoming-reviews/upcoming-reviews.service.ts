@@ -26,7 +26,7 @@ export class UpcomingReviewsService {
       `正在获取用户 ${userId} 在 ${withinDays} 天内的待复习项目。`,
     );
     const startOfToday = dayjs().startOf('day');
-    const endDateLimit = startOfToday.add(withinDays, 'day').endOf('day');
+    const endDateLimit = startOfToday.add(withinDays - 1, 'day').endOf('day');
 
     const userWithData = await this.prisma.user.findUnique({
       where: { id: userId },

@@ -126,6 +126,28 @@ function CoreLayoutComponent() {
             menu={{
               items: [
                 {
+                  label: (
+                    <Typography.Link href="mailto:yangboses@gmail.com">
+                      发送邮件
+                    </Typography.Link>
+                  ),
+                  key: 'email',
+                },
+                {
+                  label: (
+                    <Typography.Link
+                      href="https://github.com/English-Assistant/Study-Reminder/issues"
+                      target="_blank"
+                    >
+                      问题/意见反馈
+                    </Typography.Link>
+                  ),
+                  key: 'github',
+                },
+                {
+                  type: 'divider',
+                },
+                {
                   label: '退出登录',
                   key: 'logout',
                   onClick: () => {

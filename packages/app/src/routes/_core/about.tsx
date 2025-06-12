@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { Typography, List, Divider } from 'antd';
 
-const { Title, Paragraph, Link } = Typography;
+const { Title, Paragraph } = Typography;
 
 export const Route = createFileRoute('/_core/about')({
   component: AboutComponent,
@@ -47,26 +47,6 @@ function AboutComponent() {
           )}
           style={{ marginLeft: '20px' }}
         />
-      </section>
-
-      <Divider />
-
-      <section style={{ marginBottom: '40px' }}>
-        <Title level={3}>联系我们</Title>
-        <Paragraph style={{ fontSize: '16px' }}>
-          我们致力于不断改进复习助手，您的宝贵意见对我们非常重要。如果您在使用过程中遇到任何问题，或有任何功能建议，欢迎随时通过下面的邮箱与我们联系。
-        </Paragraph>
-        <Link href="mailto:yangboses@gmail.com" style={{ fontSize: '16px' }}>
-          发送邮件反馈 (yangboses@gmail.com)
-        </Link>
-        <br></br>
-        <Link
-          href="https://github.com/English-Assistant/Study-Reminder/issues"
-          style={{ fontSize: '16px' }}
-          target="_blank"
-        >
-          问题反馈 (GitHub)
-        </Link>
       </section>
     </div>
   );

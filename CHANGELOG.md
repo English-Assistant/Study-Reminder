@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.12.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.11.0...v1.12.0) (2025-06-12)
+
+
+### Features
+
+* 在核心布局中添加“发送邮件”和“问题/意见反馈”链接，优化用户联系渠道 ([7278f6c](https://github.com/English-Assistant/Study-Reminder/commit/7278f6c393c02c86f5701f0c9d39fa6adf7b7c1b))
+
+
+### Bug Fixes
+
+* 修正待复习项目的结束日期计算逻辑，确保获取的日期范围正确 ([dbe8620](https://github.com/English-Assistant/Study-Reminder/commit/dbe862052b4c8f8698e8580c530465e70a8146d5)), closes [#34](https://github.com/English-Assistant/Study-Reminder/issues/34)
+
 ## [1.11.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.10.0...v1.11.0) (2025-06-11)
 
 

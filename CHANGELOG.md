@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.13.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.12.0...v1.13.0) (2025-06-13)
+
+
+### Features
+
+* 优化学习记录和复习逻辑，添加复习时间窗口支持，改进复习计划计算逻辑 ([06eb2de](https://github.com/English-Assistant/Study-Reminder/commit/06eb2de9b231b8ca6218f71c182d1758f9fb569a))
+* 添加 Redis 支持，集成 BullMQ 进行复习提醒任务调度，优化复习计划计算逻辑 ([2e8479c](https://github.com/English-Assistant/Study-Reminder/commit/2e8479c656276a5bef8dcd3ccb209ede71f97447))
+
 ## [1.12.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.11.0...v1.12.0) (2025-06-12)
 
 

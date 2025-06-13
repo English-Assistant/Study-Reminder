@@ -336,4 +336,67 @@ export class NotificationsService {
       `完成用户 ${userId} 的提醒发送 (记录: ${studyRecordId}, 规则: ${ruleId})`,
     );
   }
+
+  /**
+   * 根据 5 分钟窗口批量发送提醒。
+   * @param userId 目标用户
+   * @param items 同一窗口内需要提醒的复习项集合
+   * 业务规则：
+   *   1. items.length === 1 → 走原有单条提醒逻辑（保证邮件模板一致）。
+   *   2. items.length >= 2 → 走批量邮件&合并应用内通知。
+   */
+  async sendBulkReminder(
+    userId: string,
+    items: { itemName: string; courseName: string }[],
+  ) {
+    if (items.length === 0) return;
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { settings: true },
+    });
+
+    if (!user || !user.settings || !user.settings.globalNotification) {
+      return;
+    }
+
+    // ---------- 邮件提醒 ----------
+    if (user.settings.emailNotification && user.email) {
+      // 单条退化：沿用原模板
+      if (items.length === 1) {
+        const [it] = items;
+        await this.sendReviewReminderEmail(user.email, user.username, {
+          itemName: it.itemName,
+          courseName: it.courseName,
+        });
+      } else {
+        await this.mailService.sendBulkReviewReminderEmail(
+          user.email,
+          user.username,
+          items,
+        );
+      }
+    }
+
+    // ---------- 应用内通知 (WebSocket) ----------
+    if (user.settings.inAppNotification) {
+      if (items.length === 1) {
+        const [it] = items;
+        this.sendInAppNotification(user.id, {
+          title: `复习提醒: ${it.itemName} - ${it.courseName}`,
+          body: `现在是计划的复习时间，请完成复习。`,
+          tag: it.itemName,
+        });
+      } else {
+        this.sendInAppNotification(user.id, {
+          title: `您有 ${items.length} 个待复习任务`,
+          body: items
+            .slice(0, 3)
+            .map((it) => `${it.itemName} - ${it.courseName}`)
+            .join('；'),
+          tag: 'bulk-review',
+        });
+      }
+    }
+  }
 }

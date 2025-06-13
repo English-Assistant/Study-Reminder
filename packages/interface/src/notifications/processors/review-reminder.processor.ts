@@ -4,12 +4,14 @@ import { REVIEW_REMINDER_QUEUE } from '../../queue/queue.constants';
 import { NotificationsService } from '../services/notifications.service';
 import { Injectable, Logger } from '@nestjs/common';
 
-interface ReviewReminderJobData {
-  userId: string;
-  studyRecordId: string;
-  ruleId: number;
+interface ReviewItem {
   itemName: string;
   courseName: string;
+}
+
+interface ReviewReminderJobData {
+  userId: string;
+  items: ReviewItem[];
 }
 
 @Injectable()
@@ -21,17 +23,19 @@ export class ReviewReminderProcessor extends WorkerHost {
     super();
   }
 
+  /**
+   * BullMQ Worker 入口：消费复习提醒 Job。
+   * Job.data 由 Planner 侧生成：
+   *   - items.length === 1  → 单条邮件
+   *   - items.length >= 2  → 合并邮件
+   */
   async process(job: Job<ReviewReminderJobData>): Promise<void> {
-    const data = job.data;
-    this.logger.log(`处理复习提醒 Job ${job.id} for user ${data.userId}`);
+    const { userId, items } = job.data;
+    this.logger.log(
+      `处理复习提醒 Job ${job.id} for user ${userId}, items: ${items.length}`,
+    );
     try {
-      await this.notifications.sendReminderByIds(
-        data.userId,
-        data.studyRecordId,
-        data.ruleId,
-        data.itemName,
-        data.courseName,
-      );
+      await this.notifications.sendBulkReminder(userId, items);
     } catch (error) {
       this.logger.error('发送提醒失败', error);
       throw error;

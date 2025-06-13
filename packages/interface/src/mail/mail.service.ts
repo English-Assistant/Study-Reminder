@@ -62,6 +62,37 @@ export class MailService {
     });
   }
 
+  async sendBulkReviewReminderEmail(
+    email: string,
+    userName: string,
+    items: { itemName: string; courseName: string }[],
+  ): Promise<void> {
+    /**
+     * 发送「合并复习提醒」邮件。
+     * 为什么要合并？
+     * - 当 5 分钟窗口内有多个待复习项时，如果逐条发送邮件会造成用户收件箱轰炸。
+     * - 因此将同一窗口内的所有复习项整合到一封邮件的列表中，一次性提醒。
+     * - 该方法由 NotificationsService.sendBulkReminder() 调用，必要时会降级到单条发送。
+     */
+    const { ReviewReminderBulkEmail } = await import(
+      '../../emails/review-reminder-bulk'
+    );
+
+    const template = React.createElement(ReviewReminderBulkEmail, {
+      userName,
+      items,
+    });
+
+    const subject = `您有 ${items.length} 个待复习任务`;
+
+    await this.sendMail({
+      email,
+      subject,
+      template,
+      text: subject,
+    });
+  }
+
   async sendVerificationCodeEmail(
     email: string,
     userName: string,

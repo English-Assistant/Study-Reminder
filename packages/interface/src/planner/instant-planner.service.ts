@@ -64,6 +64,14 @@ export class InstantPlannerService {
       now.subtract(1, 'day').valueOf(),
     );
 
+    type ReviewItem = {
+      reviewTime: dayjs.Dayjs;
+      itemName: string;
+      courseName: string;
+    };
+    const GAP_MS = 5 * 60 * 1000; // 5 分钟滑动窗口
+    const candidates: ReviewItem[] = [];
+
     for (const record of user.studyRecords) {
       for (const rule of user.reviewRules) {
         let reviewTime = this.reviewLogic.calculateNextReviewTime(
@@ -86,20 +94,7 @@ export class InstantPlannerService {
         }
 
         if (reviewTime.isAfter(now) && reviewTime.isBefore(end)) {
-          const jobId = `${userId}:${record.id}:${rule.id}:${reviewTime.valueOf()}`;
-          const delay = reviewTime.diff(now);
-          await this.queue.add(
-            JOB_NAME_SEND_REVIEW,
-            {
-              userId,
-              studyRecordId: record.id,
-              ruleId: rule.id,
-              itemName: record.textTitle,
-              courseName: record.course?.name || '未知课程',
-            },
-            { jobId, delay, removeOnComplete: true, removeOnFail: true },
-          );
-
+          // 写入 Redis ZSET 单条（前端日历用）
           const member = JSON.stringify({
             studyRecordId: record.id,
             textTitle: record.textTitle,
@@ -108,8 +103,75 @@ export class InstantPlannerService {
             ruleId: rule.id,
           });
           await redisClient.zadd(key, reviewTime.valueOf(), member);
+
+          // 收集到候选列表，稍后做滑动窗口聚合
+          candidates.push({
+            reviewTime,
+            itemName: record.textTitle,
+            courseName: record.course?.name || '未知课程',
+          });
         }
       }
+    }
+
+    // ---------- 滑动窗口聚合 ----------
+    if (candidates.length) {
+      // 按时间升序
+      candidates.sort(
+        (a, b) => a.reviewTime.valueOf() - b.reviewTime.valueOf(),
+      );
+
+      let groupStartTs = candidates[0].reviewTime.valueOf();
+      let currentGroup: Omit<ReviewItem, 'reviewTime'>[] = [];
+
+      const flushGroup = async () => {
+        if (currentGroup.length === 0) return;
+        const delay = groupStartTs - now.valueOf();
+        if (delay < 0) return; // 应该不会发生，安全判断
+        const jobId = `${userId}:${groupStartTs}`;
+        await this.queue.add(
+          JOB_NAME_SEND_REVIEW,
+          {
+            userId,
+            items: currentGroup,
+          },
+          { jobId, delay, removeOnComplete: true, removeOnFail: true },
+        );
+        currentGroup = [];
+      };
+
+      for (const item of candidates) {
+        if (currentGroup.length === 0) {
+          groupStartTs = item.reviewTime.valueOf();
+          currentGroup.push({
+            itemName: item.itemName,
+            courseName: item.courseName,
+          });
+          continue;
+        }
+
+        const diff = item.reviewTime.valueOf() - groupStartTs;
+        if (diff <= GAP_MS) {
+          // 仍在窗口内，合并
+          currentGroup.push({
+            itemName: item.itemName,
+            courseName: item.courseName,
+          });
+          // 更新 groupStartTs 以链式延长窗口
+          groupStartTs = item.reviewTime.valueOf();
+        } else {
+          // 超出窗口，先推送已有分组
+          await flushGroup();
+          // 开启新分组
+          groupStartTs = item.reviewTime.valueOf();
+          currentGroup.push({
+            itemName: item.itemName,
+            courseName: item.courseName,
+          });
+        }
+      }
+      // flush last
+      await flushGroup();
     }
 
     await redisClient.expire(key, this.CACHE_TTL_SEC);

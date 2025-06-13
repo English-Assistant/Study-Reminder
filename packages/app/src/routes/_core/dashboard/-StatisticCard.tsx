@@ -12,11 +12,11 @@ export const StatisticCard: FC<StatisticCardProps> = ({
   unit,
 }) => {
   return (
-    <div className="rounded-2 bg-#F3F3FF p-4 flex-1">
-      <div className="color-#4B5563 text-size-4 lh-5">{title}</div>
-      <div className="color-#553C9A text-size-6 lh-8 font-bold mt-2">
+    <div className="rounded-2 bg-#F3F3FF p-4">
+      <div className="color-#666 text-size-3.5 lh-5.2">{title}</div>
+      <div className="color-#7D6CE2 text-size-6 lh-9 mt-2">
         {value}
-        <span className="text-size-4 ml-1">{unit}</span>
+        <span className="ml-1 color-#666 text-size-3.5 lh-5.2">{unit}</span>
       </div>
     </div>
   );

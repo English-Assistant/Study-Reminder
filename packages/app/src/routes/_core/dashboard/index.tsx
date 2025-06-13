@@ -49,7 +49,9 @@ function DashboardComponent() {
     <Spin spinning={loading} tip="加载中...">
       <div className="grid grid-cols-[1fr_45vw] gap-6 container mx-auto">
         <div className="bg-#fff rounded-3 p-6">
-          <Title level={2}>学习统计</Title>
+          <Title className="text-size-4.5!" level={2}>
+            学习统计
+          </Title>
 
           <div className="grid grid-cols-2 gap-4">
             <StatisticCard
@@ -91,7 +93,9 @@ function DashboardComponent() {
         </div>
         <div className="flex flex-col gap-6">
           <div className="bg-#fff rounded-3 p-6">
-            <Title level={2}>今日待复习</Title>
+            <Title className="text-size-4.5!" level={2}>
+              7日待复习
+            </Title>
 
             {upcomingReviews && upcomingReviews.length > 0 ? (
               <Tabs
@@ -108,34 +112,31 @@ function DashboardComponent() {
                           return (
                             <div
                               key={course.courseId}
-                              className="rounded-3 color-#fff p-4 w-50"
-                              style={{
-                                background: `linear-gradient(146.30992deg, #9F7AEA 15%, rgba(159, 122, 234, 0.60) 85%)`,
-                              }}
+                              className="rounded-3 color-#fff p-5 w-80 bg-#EBE8FC"
                             >
-                              <div className="mb-4 text-size-4 lh-6 font-600">
+                              <div className="text-size-4 lh-6 font-600">
                                 <Badge
                                   color={course.courseColor!}
                                   text={
-                                    <span className="color-#fff text-size-4 lh-6">
+                                    <span className="color-#444444 text-size-4 lh-6">
                                       {course.courseName}
                                     </span>
                                   }
                                 />
                               </div>
-                              <span className="color-#fff text-size-3.5 lh-5">
+                              <div className="color-#666 text-size-3.5 lh-5.2 my-4">
                                 {course.reviews.length}个复习计划
-                              </span>
+                              </div>
                               {course.reviews.map((review) => {
                                 return (
                                   <div
                                     key={
                                       review.textTitle + review.expectedReviewAt
                                     }
-                                    className="color-[rgba(255,255,255,0.80)] text-size-3.5 lh-5 flex flex-justify-between"
+                                    className="color-#444 text-size-3.75 lh-5.6 flex flex-justify-between"
                                   >
                                     <div>{review.textTitle}</div>
-                                    <div>
+                                    <div className="text-size-3.5">
                                       {dayjs(review.expectedReviewAt).format(
                                         'HH:mm',
                                       )}
@@ -156,7 +157,9 @@ function DashboardComponent() {
             )}
           </div>
           <div className="bg-#fff rounded-3 p-6">
-            <Title level={2}>最近完成</Title>
+            <Title className="text-size-4.5!" level={2}>
+              最近完成
+            </Title>
 
             {studyRecords && studyRecords.length > 0 ? (
               <Tabs
@@ -171,21 +174,22 @@ function DashboardComponent() {
                           return (
                             <div
                               key={record.id}
-                              className="rounded-3 w-50 p-3.5"
+                              className="rounded-3 w-60 p-5"
                               style={{
-                                border: '1px solid #E9D8FD',
+                                boxShadow: `0rem 0.25rem 0.5rem 0rem rgba(0, 0, 0, 0.05), 0rem 0rem 0rem 0rem rgba(0, 0, 0, 0.00), 0rem 0rem 0rem 0rem rgba(0, 0, 0, 0.00)`,
+                                border: '1px solid #F3F4F6',
                               }}
                             >
-                              <div className="color-#1F2937 text-size-4.5 lh-6">
+                              <div className="color-#444 text-size-4 lh-6">
                                 {record.textTitle}
                               </div>
                               <Tag
-                                className="color-#6B7280 text-size-4 lh-5 mt-3 mb-1 px-1! mx--0.5"
+                                className="color-#6B7280 text-size-4 lh-5 my-3 px-1! mx--0.5"
                                 color={record.course.color!}
                               >
                                 {record.course.name}
                               </Tag>
-                              <div className="color-#9CA3AF lh-5 text-size-4">
+                              <div className="color-#666666 lh-5.2 text-size-3.5">
                                 {dayjs(record.studiedAt).format('HH:mm')}
                               </div>
                             </div>

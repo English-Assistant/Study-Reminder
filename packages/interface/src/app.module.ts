@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { ScheduleModule } from '@nestjs/schedule';
+import { BullModule } from '@nestjs/bullmq';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -14,11 +16,13 @@ import { StudyRecordsModule } from './study-records/study-records.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { NotificationsModule } from './notifications/notifications.module';
 // import { UserPreferencesModule } from './user-preferences/user-preferences.module'; // REMOVED
-import { ScheduleModule } from '@nestjs/schedule';
 import { UpcomingReviewsModule } from './upcoming-reviews/upcoming-reviews.module';
 import { SettingsModule } from './settings/settings.module';
 import { MailModule } from './mail/mail.module';
 import { VerificationCodeModule } from './verification-code/verification-code.module';
+import { RedisModule } from './redis/redis.module';
+import { PlannerModule } from './planner/planner.module';
+import { PrismaWatchMiddleware } from './prisma/prisma-watch.middleware';
 
 @Module({
   imports: [
@@ -59,8 +63,20 @@ import { VerificationCodeModule } from './verification-code/verification-code.mo
     SettingsModule,
     MailModule,
     VerificationCodeModule,
+    RedisModule,
+    PlannerModule,
+    BullModule.forRootAsync({
+      imports: [ConfigModule, RedisModule],
+      useFactory: (config: ConfigService) => {
+        const url = config.get<string>('REDIS_URL', 'redis://localhost:6379');
+        return {
+          connection: { url },
+        };
+      },
+      inject: [ConfigService],
+    }),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, PrismaWatchMiddleware],
 })
 export class AppModule {}

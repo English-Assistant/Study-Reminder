@@ -26,7 +26,7 @@
 | **框架**     | [React](https://react.dev/), [Vite](https://vitejs.dev/), [TanStack Router](https://tanstack.com/router) | [NestJS](https://nestjs.com/), [Prisma](https://www.prisma.io/), [PostgreSQL](https://www.postgresql.org/)   |
 | **UI**       | [Ant Design](https://ant.design/), [UnoCSS](https://unocss.dev/)                                         | -                                                                                                            |
 | **状态管理** | [Zustand](https://zustand-demo.pmnd.rs/)                                                                 | -                                                                                                            |
-| **实时通信** | [Socket.io Client](https://socket.io/)                                                                   | [Socket.io](https://socket.io/), [BullMQ](https://bullmq.io/)                                                |
+| **实时通信** | [Socket.io Client](https://socket.io/)                                                                   | [Socket.io](https://socket.io/), [BullMQ](https://bullmq.io/), **Redis 7**                                   |
 | **核心工具** | [TypeScript](https://www.typescriptlang.org/), [ahooks](https://ahooks.js.org/)                          | [TypeScript](https://www.typescriptlang.org/), [JWT](https://jwt.io/), [Nodemailer](https://nodemailer.com/) |
 
 - **基础设施**: Docker, Docker Compose, Nginx, pnpm, GitHub Actions
@@ -44,7 +44,8 @@
 
 - Node.js 22+
 - pnpm 8+
-- Docker & Docker Compose
+- Docker & Docker Compose (已包含 Redis 服务)
+- - Redis 7+
 - PostgreSQL 15+
 
 ### 本地开发
@@ -61,7 +62,7 @@
     ```bash
     # 复制 .env.example 并重命名为 .env
     cp .env.example .env
-    # 编辑 .env 文件，至少需要配置数据库连接 (DATABASE_URL)
+    # 编辑 .env 文件，至少需要配置数据库连接 (DATABASE_URL) 与 Redis 连接 (REDIS_URL)
     ```
 
 3.  **安装依赖**

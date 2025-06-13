@@ -95,6 +95,8 @@ const CheckRecord: React.FC<CheckRecordProps> = ({
     legend: {
       data: ['完成数量', '待复习'],
       top: 10,
+      left: 0,
+      icon: 'circle',
     },
     grid: {
       left: '3%',
@@ -133,25 +135,55 @@ const CheckRecord: React.FC<CheckRecordProps> = ({
         name: '完成数量',
         type: 'line',
         smooth: true,
+        symbol: 'circle',
         data: chartData.map((item) => item.completed),
         itemStyle: {
-          color: '#8A2BE2',
+          color: '#7D6CE2',
         },
         lineStyle: {
-          color: '#8A2BE2',
+          color: '#7D6CE2',
         },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(125, 108, 226, 0.4)' },
+              { offset: 1, color: 'rgba(125, 108, 226, 0)' },
+            ],
+          },
+        },
+        showSymbol: true,
       },
       {
         name: '待复习',
         type: 'line',
         smooth: true,
+        symbol: 'circle',
         data: chartData.map((item) => item.pending),
         itemStyle: {
-          color: '#5470C6',
+          color: '#A99BEB',
         },
         lineStyle: {
-          color: '#5470C6',
+          color: '#A99BEB',
         },
+        areaStyle: {
+          color: {
+            type: 'linear',
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: 'rgba(169, 155, 235, 0.4)' },
+              { offset: 1, color: 'rgba(169, 155, 235, 0)' },
+            ],
+          },
+        },
+        showSymbol: true,
       },
     ],
   };

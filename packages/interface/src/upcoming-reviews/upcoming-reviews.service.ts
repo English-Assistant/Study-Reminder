@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { RedisService } from '../redis/redis.service';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 dayjs.extend(duration);
@@ -16,6 +17,7 @@ export class UpcomingReviewsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly reviewLogicService: ReviewLogicService,
+    private readonly redis: RedisService,
   ) {}
 
   async getUpcomingReviews(
@@ -25,6 +27,22 @@ export class UpcomingReviewsService {
     this.logger.log(
       `正在获取用户 ${userId} 在 ${withinDays} 天内的待复习项目。`,
     );
+
+    const redisClient = this.redis.getClient();
+    const startTs = dayjs().startOf('day').valueOf();
+    const endTs = dayjs().startOf('day').add(withinDays, 'day').valueOf();
+    const cacheKey = `upcoming:${userId}`;
+
+    try {
+      const cached = await redisClient.zrangebyscore(cacheKey, startTs, endTs);
+      if (cached && cached.length > 0) {
+        // 后续会补实现缓存解析逻辑，目前直接跳过实时计算。
+        // 为保持接口正确，暂时继续走实时计算分支。
+      }
+    } catch {
+      this.logger.warn('读取 Redis 缓存失败，回退到实时计算');
+    }
+
     const startOfToday = dayjs().startOf('day');
     const endDateLimit = startOfToday.add(withinDays - 1, 'day').endOf('day');
 
@@ -38,7 +56,6 @@ export class UpcomingReviewsService {
           orderBy: { studiedAt: 'desc' },
         },
         reviewRules: true,
-        studyTimeWindows: true,
       },
     });
 
@@ -47,7 +64,7 @@ export class UpcomingReviewsService {
       return [];
     }
 
-    const { studyRecords, reviewRules, studyTimeWindows } = userWithData;
+    const { studyRecords, reviewRules } = userWithData;
     if (!studyRecords.length || !reviewRules.length) {
       return [];
     }
@@ -92,7 +109,6 @@ export class UpcomingReviewsService {
           expectedReviewAtDayjs =
             this.reviewLogicService.adjustReviewTimeForStudyWindows(
               expectedReviewAtDayjs,
-              studyTimeWindows,
             );
         }
 

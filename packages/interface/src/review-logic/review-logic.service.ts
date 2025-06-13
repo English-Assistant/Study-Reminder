@@ -1,10 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  ReviewRule,
-  StudyTimeWindow,
-  IntervalUnit,
-  ReviewMode,
-} from '@prisma/client';
+import { ReviewRule, IntervalUnit, ReviewMode } from '@prisma/client';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
@@ -50,41 +45,13 @@ export class ReviewLogicService {
    * 根据用户的学习时间窗口调整计划的复习时间。
    * 如果计划时间不在任何窗口内，则推迟到下一个可用窗口的开始时间。
    * @param reviewTime - 原始计算的复习时间。
-   * @param windows - 用户设置的学习时间段列表。
    * @returns 调整后的复习时间（dayjs 对象）。
    */
-  adjustReviewTimeForStudyWindows(
-    reviewTime: dayjs.Dayjs,
-    windows: StudyTimeWindow[],
-  ): dayjs.Dayjs {
-    if (!windows || windows.length === 0) {
-      return reviewTime; // 如果未设置时间窗口，则返回原始计算时间
-    }
-
-    // 1. 将所有窗口的开始和结束时间字符串转换为当天的 Dayjs 对象
-    const todayWindows = windows
-      .map((w) => {
-        const [startH, startM] = w.startTime.split(':').map(Number);
-        const [endH, endM] = w.endTime.split(':').map(Number);
-        // 基于 reviewTime 的日期，但使用窗口的小时和分钟
-        return {
-          start: reviewTime
-            .hour(startH)
-            .minute(startM)
-            .second(0)
-            .millisecond(0),
-          end: reviewTime.hour(endH).minute(endM).second(0).millisecond(0),
-        };
-      })
-      // 2. 按开始时间对窗口进行排序
-      .sort((a, b) => a.start.valueOf() - b.start.valueOf());
-
-    // 3. 找到第一个可用的复习时间点
-    // 逻辑：复习时间应该被安排在当天第一个可用时间窗口的开始
-    const firstWindowStartTime = todayWindows[0].start;
-
-    // 直接将复习时间设置为第一个窗口的开始时间
-    return firstWindowStartTime;
+  adjustReviewTimeForStudyWindows(reviewTime: dayjs.Dayjs): dayjs.Dayjs {
+    // 根据用户最新澄清，StudyTimeWindow 仅影响通知发送，不应修改核心的复习时间。
+    // 因此，此函数应直接返回原始计算出的时间。
+    // 未来处理通知的服務 (NotificationsService) 中可以重新实现窗口调整逻辑。
+    return reviewTime;
   }
 
   /**

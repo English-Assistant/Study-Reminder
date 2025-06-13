@@ -20,7 +20,9 @@ export const SubItem: FC<Props> = ({
   monthlyData,
 }) => {
   const sortData = _.sortBy(entriesForDate, (item) =>
-    isStudyRecord(item) ? item.studiedAt : item.expectedReviewAt,
+    isStudyRecord(item)
+      ? dayjs(item.studiedAt).valueOf()
+      : dayjs(item.expectedReviewAt).valueOf(),
   );
 
   return (

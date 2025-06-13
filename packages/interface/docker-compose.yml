@@ -16,5 +16,15 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports:
+      - '6379:6379' # 可按需映射
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis_interface_data:/data
+
 volumes:
   postgres_interface_data:
+  redis_interface_data:

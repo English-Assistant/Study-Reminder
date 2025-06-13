@@ -4,29 +4,9 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsGateway } from '../gateways/notifications.gateway';
 import { MailService } from '../../mail/mail.service';
-import { Cron, CronExpression } from '@nestjs/schedule';
-import {
-  User,
-  Setting,
-  StudyRecord,
-  ReviewRule,
-  StudyTimeWindow,
-} from '@prisma/client';
+import { StudyRecord, StudyTimeWindow } from '@prisma/client';
 import dayjs from 'dayjs';
 import { ReviewLogicService } from '../../review-logic/review-logic.service';
-
-// 辅助类型，用于组合用户及其相关数据
-type UserWithRelations = User & {
-  settings: Setting | null;
-  reviewRules: ReviewRule[];
-  studyRecords: (StudyRecord & {
-    course: {
-      id: string;
-      name: string;
-    } | null;
-  })[];
-  studyTimeWindows: StudyTimeWindow[]; // 用户的学习时间段
-};
 
 export interface ReviewReminderDetails {
   itemName: string; // 例如 StudyRecord.textTitle
@@ -53,6 +33,8 @@ export class NotificationsService {
     return dayjs(studyRecord.studiedAt).second(0).millisecond(0);
   }
 
+  // 旧的每分钟扫描已被 BullMQ 替代，如需回滚可重新启用
+  /*
   @Cron(CronExpression.EVERY_MINUTE)
   async handleScheduledReviewChecks() {
     this.logger.log('运行计划中的复习项检查...');
@@ -140,11 +122,10 @@ export class NotificationsService {
             );
           }
 
-          const adjustedTime =
-            this.reviewLogicService.adjustReviewTimeForStudyWindows(
-              expectedReviewAtDayjs,
-              user.studyTimeWindows,
-            );
+          const adjustedTime = this.adjustNotificationTimeForWindows(
+            expectedReviewAtDayjs,
+            user.studyTimeWindows,
+          );
 
           // 只有当调整后的时间与当前时间在同一分钟时，才发送通知
           if (adjustedTime.isSame(now, 'minute')) {
@@ -196,6 +177,7 @@ export class NotificationsService {
     }
     this.logger.log('完成计划中的复习项检查。');
   }
+  */
 
   /**
    * 发送复习提醒邮件。
@@ -267,5 +249,91 @@ export class NotificationsService {
       );
       throw error;
     }
+  }
+
+  /**
+   * 根据用户的学习时间窗口调整计划的通知时间。
+   * 这是仅用于通知发送的逻辑，不影响核心复习数据。
+   * @param reviewTime - 原始计算的复习时间。
+   * @param windows - 用户设置的学习时间段列表。
+   * @returns 调整后的通知时间（dayjs 对象）。
+   */
+  private adjustNotificationTimeForWindows(
+    reviewTime: dayjs.Dayjs,
+    windows: StudyTimeWindow[],
+  ): dayjs.Dayjs {
+    if (!windows || windows.length === 0) {
+      return reviewTime; // 如果未设置时间窗口，则立即发送。
+    }
+
+    const todayWindows = windows
+      .map((w) => {
+        const [startH, startM] = w.startTime.split(':').map(Number);
+        const [endH, endM] = w.endTime.split(':').map(Number);
+        return {
+          start: reviewTime.hour(startH).minute(startM).second(0),
+          end: reviewTime.hour(endH).minute(endM).second(0),
+        };
+      })
+      .sort((a, b) => a.start.valueOf() - b.start.valueOf());
+
+    // 检查原始时间是否已在某个窗口内
+    for (const window of todayWindows) {
+      if (reviewTime.isBetween(window.start, window.end, null, '[]')) {
+        return reviewTime;
+      }
+    }
+
+    // 如果不在任何窗口内，找到下一个可用的窗口起点
+    for (const window of todayWindows) {
+      if (reviewTime.isBefore(window.start)) {
+        return window.start; // 推迟到当天稍晚的窗口
+      }
+    }
+
+    // 如果晚于所有今天的窗口，则推迟到第二天的第一个窗口
+    const tomorrowFirstWindow = todayWindows[0];
+    return tomorrowFirstWindow.start.add(1, 'day');
+  }
+
+  /**
+   * 提供给 BullMQ Processor 的简化接口，根据用户与记录 ID 直接发送提醒。
+   */
+  async sendReminderByIds(
+    userId: string,
+    studyRecordId: string,
+    ruleId: number,
+    itemName: string,
+    courseName: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { settings: true },
+    });
+
+    if (!user || !user.settings || !user.settings.globalNotification) {
+      return;
+    }
+
+    const reviewDetails: ReviewReminderDetails = { itemName, courseName };
+
+    if (user.settings.emailNotification && user.email) {
+      await this.sendReviewReminderEmail(
+        user.email,
+        user.username,
+        reviewDetails,
+      );
+    }
+
+    if (user.settings.inAppNotification) {
+      this.sendInAppNotification(user.id, {
+        title: `复习提醒: ${reviewDetails.itemName} - ${reviewDetails.courseName}`,
+        body: `现在是计划的复习时间，请完成复习。`,
+        tag: reviewDetails.itemName,
+      });
+    }
+    this.logger.log(
+      `完成用户 ${userId} 的提醒发送 (记录: ${studyRecordId}, 规则: ${ruleId})`,
+    );
   }
 }

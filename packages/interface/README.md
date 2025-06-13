@@ -1,132 +1,99 @@
-# Study Reminder - Backend API
+# Study Reminder · Backend API (NestJS)
 
-> 后端 API 接口模块，提供完整的学习复习管理功能
+> 负责业务逻辑、数据存储、定时与消息推送的核心服务
 
-## 📖 概述
+---
 
-本模块为 Study Reminder 应用提供 RESTful API 服务，支持用户管理、课程管理、学习打卡和智能复习计划等核心功能。
+## ✨ 特色
 
-## 🏗️ 模块架构
+1. **Prisma + PostgreSQL**  类型安全的 ORM 与迁移
+2. **BullMQ + Redis**  延时任务 / 实时通知调度
+3. **Prisma Middleware**  监听打卡&规则变更，秒级刷新任务
+4. **Nest Schedule**  每日 `00:10` 全量 Planner，性能友好
+5. **Socket.io & Mailer**  站内 WebSocket 与邮件双通道提醒
 
-### 🔐 认证模块 (`/auth`)
+---
 
-负责用户身份验证和个人设置管理
+## ⚙️ 技术栈
 
-- **用户登录**：用户名+密码认证
-- **用户注册**：邮箱验证码+用户信息注册
-- **密码重置**：邮箱验证码+新密码重置
-- **验证码发送**：支持注册和密码重置验证码
-- **JWT 令牌管理**：安全的身份认证机制
-- **通知偏好设置**：个性化通知配置
-- **用户注销**：发送验证码以确认账户删除
+| 类别     | 依赖                     |
+| -------- | ------------------------ |
+| 核心框架 | NestJS 11 · TypeScript   |
+| 数据库   | PostgreSQL 15 · Prisma 6 |
+| 消息队列 | BullMQ 5 · Redis 7       |
+| 认证     | JWT                      |
+| 邮件     | Nodemailer + React Email |
 
-### 📚 课程模块 (`/courses`)
+---
 
-管理用户的学习课程
+## 🏗️ 模块
 
-- 课程创建和编辑
-- 课程列表查询
-- 课程删除管理
+| 路径               | 说明                                             |
+| ------------------ | ------------------------------------------------ |
+| `auth`             | 注册 / 登录 / JWT 验签                           |
+| `courses`          | 课程 CRUD                                        |
+| `study-records`    | 学习打卡、统计接口                               |
+| `review-settings`  | 复习规则管理                                     |
+| `upcoming-reviews` | 未来 7 天待复习列表（Redis 缓存）                |
+| `notifications`    | 邮件 + WebSocket 推送；BullMQ Worker             |
+| `planner`          | `DailyPlanner` (00:10) + `InstantPlanner` (实时) |
 
-### ⚙️ 复习设置模块 (`/review-settings`)
+---
 
-配置个性化复习规则
-
-- 复习周期设置
-- 规则批量管理
-- 个性化复习计划
-
-### 📝 学习记录模块 (`/study-records`)
-
-记录和管理学习打卡数据
-
-- 学习打卡记录
-- 学习统计查询
-- 连续学习天数统计
-- 多条件筛选查询
-
-### 🔄 计划复习模块 (`/upcoming-reviews`)
-
-智能复习计划管理
-
-- 未来复习计划查询
-- 复习时间计算
-- 复习提醒生成
-
-### 🔔 通知模块 (后台服务)
-
-实时通知和提醒服务
-
-- **邮件通知发送**：复习提醒和系统通知
-- **验证码邮件**：注册和密码重置验证码
-- **邮件模板**：基于 React Email 的精美模板
-- **WebSocket 实时推送**：即时消息通知
-- **定时任务调度**：自动化通知管理
-- **发送频率控制**：防止验证码滥用（1分钟限制）
-
-## 🚀 快速开始
-
-### 安装依赖
+## 🚀 快速启动
 
 ```bash
+# 1. 安装依赖
 pnpm install
+
+# 2. 复制并编辑环境变量
+cp docker/.env.example docker/.env
+vi docker/.env   # 修改 DATABASE_URL / REDIS_URL / SMTP ...
+
+# 3. 本地数据库迁移
+pnpm exec prisma migrate dev
+
+# 4. 开发模式
+pnpm start:dev
 ```
 
-### 环境配置
+> 建议使用 **Docker Compose** 一键启动（Postgres + Redis + 后端）。详见根目录 `docker/`。
 
-```bash
-cp docker/.env.example .env
-# 配置数据库连接、JWT密钥、邮件服务等
-```
+---
 
-### 启动开发服务
+## 🔑 关键环境变量
 
-```bash
-# 启动数据库
-pnpm db:start
+| 键                            | 示例值                                                   | 作用          |
+| ----------------------------- | -------------------------------------------------------- | ------------- |
+| `DATABASE_URL`                | `postgresql://user:pass@localhost:5432/db?schema=public` | Prisma 连接串 |
+| `REDIS_URL`                   | `redis://redis:6379`                                     | BullMQ / 缓存 |
+| `JWT_SECRET`                  | `...`                                                    | 令牌签名      |
+| `MAIL_HOST`                   | `smtp.xxx.com`                                           | SMTP 服务器   |
+| `MAIL_PORT`                   | `465`                                                    | SMTP 端口     |
+| `MAIL_SECURE`                 | `true`                                                   | SSL           |
+| `MAIL_USER` / `MAIL_PASSWORD` | -                                                        | SMTP 账号     |
+| `MAIL_FROM_*`                 | -                                                        | 邮件显示信息  |
 
-# 启动开发服务器
-pnpm dev
-```
+---
 
-### 数据库管理
+## 📜 常用脚本
 
-```bash
-# 数据库迁移
-pnpm db:migrate
+| 命令                 | 说明           |
+| -------------------- | -------------- |
+| `pnpm prisma studio` | 在线浏览数据库 |
+| `pnpm test`          | 单元测试       |
+| `pnpm build`         | 编译生产包     |
 
-# 重置数据库
-pnpm db:reset
+---
 
-# 查看数据库
-pnpm db:studio
-```
+## 📝 任务调度流程
 
-## 📋 API 认证
+1. **InstantPlanner** 在复习规则或学习记录变化时，秒速计算未来 26h 任务 → 写 Redis + BullMQ。
+2. **DailyPlanner** 每天 00:10 全量重算下一日任务。
+3. **ReviewReminderProcessor** (Worker) 消费队列，到期即邮件 + WebSocket 推送。
 
-大部分 API 接口需要 JWT 认证，请在请求头中包含：
+> 复习列表接口首先尝试读取 Redis，若缓存失效则实时计算并回填。
 
-```
-Authorization: Bearer <your_jwt_token>
-```
+---
 
-## 🛠️ 技术栈
-
-- **NestJS** - 企业级 Node.js 框架
-- **Prisma** - 现代化数据库 ORM
-- **PostgreSQL** - 关系型数据库
-- **Socket.io** - 实时通信
-- **Bull Queue** - 任务队列
-- **JWT** - 身份认证
-- **React Email** - 邮件模板
-- **Nodemailer** - 邮件发送
-- **TypeScript** - 类型安全
-
-## 📚 相关文档
-
-- [主项目文档](../../README.md)
-- [前端应用](../app/README.md)
-
-## 🤝 贡献
-
-欢迎提交 Issue 和 Pull Request 来完善此模块！
+MIT © Study Reminder

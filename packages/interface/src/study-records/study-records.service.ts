@@ -95,7 +95,7 @@ export class StudyRecordsService {
     addedWithinDays?: number,
   ): Promise<GroupedStudyRecordsDto[]> {
     this.logger.log(
-      `正在获取用户 ${userId} 的学习记录，课程ID：${courseId}，过滤日期：${filterDate}，添加天数范围：${addedWithinDays}`,
+      `正在获取用户 ${userId} 的学习记录，课程ID：${courseId || '未传递'}，过滤日期：${filterDate || '未传递'}，添加天数范围：${addedWithinDays || '未传递'}`,
     );
     const whereClause: Prisma.StudyRecordWhereInput = { userId };
 
@@ -352,7 +352,6 @@ export class StudyRecordsService {
           orderBy: { studiedAt: 'desc' },
         },
         reviewRules: true,
-        studyTimeWindows: true,
       },
     });
 
@@ -361,7 +360,7 @@ export class StudyRecordsService {
       return [];
     }
 
-    const { studyRecords, reviewRules, studyTimeWindows } = userWithData;
+    const { studyRecords, reviewRules } = userWithData;
 
     const recordsInMonth = studyRecords.filter((record) =>
       dayjs(record.studiedAt).isBetween(monthStart, monthEnd, null, '[]'),
@@ -408,7 +407,6 @@ export class StudyRecordsService {
           const adjustedTime =
             this.reviewLogicService.adjustReviewTimeForStudyWindows(
               expectedReviewAtDayjs,
-              studyTimeWindows,
             );
 
           if (adjustedTime.isBetween(monthStart, monthEnd, null, '[]')) {

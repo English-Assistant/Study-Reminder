@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.13.0...v1.14.0) (2025-06-13)
+
+
+### Features
+
+* 添加批量复习提醒邮件功能，优化复习提醒逻辑，支持合并邮件发送 ([87d65a9](https://github.com/English-Assistant/Study-Reminder/commit/87d65a97065f41d3aca110bc689f7c02654f9aa5))
+
 ## [1.13.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.12.0...v1.13.0) (2025-06-13)
 
 

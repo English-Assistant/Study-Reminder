@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.14.0...v1.15.0) (2025-06-14)
+
+
+### Features
+
+* 添加复习时间窗口和循环复习时间计算功能，优化复习计划逻辑 ([47b805f](https://github.com/English-Assistant/Study-Reminder/commit/47b805f59d236efdc7de06ef43bb08da0cd1794f))
+
 ## [1.14.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.13.0...v1.14.0) (2025-06-13)
 
 

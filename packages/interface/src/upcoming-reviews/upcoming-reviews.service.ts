@@ -4,12 +4,20 @@ import { RedisService } from '../redis/redis.service';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 dayjs.extend(duration);
+import { ensureFutureRecurringTime } from '../common/utils/recurring.util';
 import { UpcomingReviewDto } from './dto/upcoming-review.dto';
 import { getRuleDescription } from '../common/review-rule.util';
 import { GroupedUpcomingReviewsDto } from './dto/grouped-upcoming-reviews.dto';
 import { groupBy, map, sortBy } from 'lodash';
 import { ReviewLogicService } from '../review-logic/review-logic.service';
 
+/**
+ * UpcomingReviewsService
+ * ------------------------------------------------------------
+ * 1. 首先尝试从 Redis 读取缓存的 reviewTime 列表。
+ * 2. 若缓存缺失则实时计算未来 withinDays 天的复习任务并返回给前端。
+ * 3. 支持分组按日期 -> 课程，供日历视图使用。
+ */
 @Injectable()
 export class UpcomingReviewsService {
   private readonly logger = new Logger(UpcomingReviewsService.name);
@@ -20,6 +28,9 @@ export class UpcomingReviewsService {
     private readonly redis: RedisService,
   ) {}
 
+  /**
+   * 获取未来 N 天内的待复习任务（优先读缓存，缺失则实时计算）
+   */
   async getUpcomingReviews(
     userId: string,
     withinDays: number,
@@ -46,6 +57,7 @@ export class UpcomingReviewsService {
     const startOfToday = dayjs().startOf('day');
     const endDateLimit = startOfToday.add(withinDays - 1, 'day').endOf('day');
 
+    // 查询用户的学习记录和复习规则
     const userWithData = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
@@ -71,6 +83,7 @@ export class UpcomingReviewsService {
 
     const upcomingReviews: UpcomingReviewDto[] = [];
 
+    // 遍历所有学习记录和规则，计算每条记录的下次复习时间
     for (const record of studyRecords) {
       if (!record.course) {
         this.logger.warn(
@@ -85,25 +98,12 @@ export class UpcomingReviewsService {
             rule,
           );
 
-        // 如果是循环规则，并且计算出的时间在今天开始之前，
-        // 则需要找到未来的第一个有效复习时间
-        if (
-          rule.mode === 'RECURRING' &&
-          expectedReviewAtDayjs.isBefore(startOfToday)
-        ) {
-          const ruleInterval = dayjs.duration(
-            rule.value,
-            rule.unit.toLowerCase() as dayjs.ManipulateType,
-          );
-          const timeDiff = startOfToday.diff(expectedReviewAtDayjs);
-          const intervalsToSkip = Math.ceil(
-            timeDiff / ruleInterval.asMilliseconds(),
-          );
-          expectedReviewAtDayjs = expectedReviewAtDayjs.add(
-            intervalsToSkip * ruleInterval.asMilliseconds(),
-            'millisecond',
-          );
-        }
+        // 使用 util 保证循环规则时间位于未来
+        expectedReviewAtDayjs = ensureFutureRecurringTime(
+          expectedReviewAtDayjs,
+          rule,
+          startOfToday,
+        );
 
         if (expectedReviewAtDayjs) {
           expectedReviewAtDayjs =

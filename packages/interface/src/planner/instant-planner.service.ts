@@ -10,9 +10,19 @@ import {
   REVIEW_REMINDER_QUEUE,
   JOB_NAME_SEND_REVIEW,
 } from '../queue/queue.constants';
+import { ensureFutureRecurringTime } from '../common/utils/recurring.util';
 
 dayjs.extend(duration);
 
+/**
+ * 即时计划服务（InstantPlanner）
+ * ------------------------------------------------------------
+ * 1. 在用户的复习规则、学习记录或学习时间段变动时被触发（见 PrismaWatchMiddleware）。
+ * 2. 重新计算接下来 26 小时内的所有复习任务。
+ *    - reviewTime  : 学术意义上的复习时间，写入 Redis，供前端日历 / 统计使用。
+ *    - sendTime    : 根据学习时间段窗口调整后的实际通知发送时间，写入 BullMQ 延时队列。
+ * 3. 同一用户 5 分钟内的任务将滑动窗口合并为一条 Job，减少邮件 / WebSocket 轰炸。
+ */
 @Injectable()
 export class InstantPlannerService {
   private readonly logger = new Logger(InstantPlannerService.name);
@@ -27,6 +37,11 @@ export class InstantPlannerService {
     @InjectQueue(REVIEW_REMINDER_QUEUE) private readonly queue: Queue,
   ) {}
 
+  /**
+   * 增量刷新指定用户未来 26 小时的复习计划。
+   * 调用场景：打卡、规则/学习时间段 CRUD 时由 PrismaWatchMiddleware 触发。
+   * @param userId 目标用户 ID
+   */
   async refreshUserPlan(userId: string) {
     this.logger.log(`增量刷新用户 ${userId} 的复习计划缓存`);
     const redisClient = this.redis.getClient();
@@ -39,6 +54,7 @@ export class InstantPlannerService {
       where: { id: userId },
       include: {
         reviewRules: true,
+        studyTimeWindows: true,
         studyRecords: {
           include: {
             course: true,
@@ -65,11 +81,11 @@ export class InstantPlannerService {
     );
 
     type ReviewItem = {
-      reviewTime: dayjs.Dayjs;
+      sendTime: dayjs.Dayjs; // 实际通知时间，已按学习时间段调整
       itemName: string;
       courseName: string;
     };
-    const GAP_MS = 5 * 60 * 1000; // 5 分钟滑动窗口
+    const GAP_MS = 5 * 60 * 1000; // 5 分钟滑动窗口（链接式）
     const candidates: ReviewItem[] = [];
 
     for (const record of user.studyRecords) {
@@ -78,22 +94,15 @@ export class InstantPlannerService {
           record.studiedAt,
           rule,
         );
-        if (rule.mode === 'RECURRING' && reviewTime.isBefore(now)) {
-          const ruleInterval = dayjs.duration(
-            rule.value,
-            rule.unit.toLowerCase() as dayjs.ManipulateType,
-          );
-          const timeDiff = now.diff(reviewTime);
-          const intervalsToSkip = Math.ceil(
-            timeDiff / ruleInterval.asMilliseconds(),
-          );
-          reviewTime = reviewTime.add(
-            intervalsToSkip * ruleInterval.asMilliseconds(),
-            'millisecond',
-          );
-        }
+        reviewTime = ensureFutureRecurringTime(reviewTime, rule, now);
 
-        if (reviewTime.isAfter(now) && reviewTime.isBefore(end)) {
+        // 计算实际发送时间
+        const sendTime = this.reviewLogic.adjustTimeForWindows(
+          reviewTime,
+          user.studyTimeWindows,
+        );
+
+        if (sendTime.isAfter(now) && sendTime.isBefore(end)) {
           // 写入 Redis ZSET 单条（前端日历用）
           const member = JSON.stringify({
             studyRecordId: record.id,
@@ -106,7 +115,7 @@ export class InstantPlannerService {
 
           // 收集到候选列表，稍后做滑动窗口聚合
           candidates.push({
-            reviewTime,
+            sendTime,
             itemName: record.textTitle,
             courseName: record.course?.name || '未知课程',
           });
@@ -117,13 +126,12 @@ export class InstantPlannerService {
     // ---------- 滑动窗口聚合 ----------
     if (candidates.length) {
       // 按时间升序
-      candidates.sort(
-        (a, b) => a.reviewTime.valueOf() - b.reviewTime.valueOf(),
-      );
+      candidates.sort((a, b) => a.sendTime.valueOf() - b.sendTime.valueOf());
 
-      let groupStartTs = candidates[0].reviewTime.valueOf();
-      let currentGroup: Omit<ReviewItem, 'reviewTime'>[] = [];
+      let groupStartTs = candidates[0].sendTime.valueOf();
+      let currentGroup: Omit<ReviewItem, 'sendTime'>[] = [];
 
+      // 将 currentGroup 任务提交到队列并清空
       const flushGroup = async () => {
         if (currentGroup.length === 0) return;
         const delay = groupStartTs - now.valueOf();
@@ -142,7 +150,7 @@ export class InstantPlannerService {
 
       for (const item of candidates) {
         if (currentGroup.length === 0) {
-          groupStartTs = item.reviewTime.valueOf();
+          groupStartTs = item.sendTime.valueOf();
           currentGroup.push({
             itemName: item.itemName,
             courseName: item.courseName,
@@ -150,7 +158,7 @@ export class InstantPlannerService {
           continue;
         }
 
-        const diff = item.reviewTime.valueOf() - groupStartTs;
+        const diff = item.sendTime.valueOf() - groupStartTs;
         if (diff <= GAP_MS) {
           // 仍在窗口内，合并
           currentGroup.push({
@@ -158,19 +166,19 @@ export class InstantPlannerService {
             courseName: item.courseName,
           });
           // 更新 groupStartTs 以链式延长窗口
-          groupStartTs = item.reviewTime.valueOf();
+          groupStartTs = item.sendTime.valueOf();
         } else {
           // 超出窗口，先推送已有分组
           await flushGroup();
           // 开启新分组
-          groupStartTs = item.reviewTime.valueOf();
+          groupStartTs = item.sendTime.valueOf();
           currentGroup.push({
             itemName: item.itemName,
             courseName: item.courseName,
           });
         }
       }
-      // flush last
+      // 处理最后一组剩余任务
       await flushGroup();
     }
 

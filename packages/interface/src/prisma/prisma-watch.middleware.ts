@@ -2,6 +2,12 @@ import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { InstantPlannerService } from '../planner/instant-planner.service';
 
+/**
+ * Prisma 中间件：监听关键表变动 → 刷新复习计划
+ * ------------------------------------------------------------
+ * 监听 ReviewRule / StudyRecord / StudyTimeWindow 的 create | update | delete，
+ * 调用 InstantPlanner.refreshUserPlan()，保持队列与 Redis 实时一致。
+ */
 @Injectable()
 export class PrismaWatchMiddleware implements OnModuleInit {
   private readonly logger = new Logger(PrismaWatchMiddleware.name);
@@ -15,7 +21,7 @@ export class PrismaWatchMiddleware implements OnModuleInit {
     this.prisma.$use(async (params, next) => {
       const result = await next(params);
 
-      const affectModels = ['ReviewRule', 'StudyRecord'];
+      const affectModels = ['ReviewRule', 'StudyRecord', 'StudyTimeWindow'];
       if (!params.model || !affectModels.includes(params.model)) {
         return result;
       }
@@ -40,6 +46,16 @@ export class PrismaWatchMiddleware implements OnModuleInit {
           case 'StudyRecord':
             // 目前仅关心 create
             userId = result.userId;
+            break;
+          case 'StudyTimeWindow':
+            // 创建、更新、删除均刷新
+            userId = result.userId ?? result?.userId;
+            if (!userId && params.args?.where?.id) {
+              const win = await this.prisma.studyTimeWindow.findUnique({
+                where: { id: params.args.where.id },
+              });
+              userId = win?.userId;
+            }
             break;
         }
 

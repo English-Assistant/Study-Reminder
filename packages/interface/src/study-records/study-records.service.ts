@@ -22,10 +22,13 @@ import { isEmpty, sortBy, groupBy, map, orderBy } from 'lodash';
 import { getRuleDescription } from '../common/review-rule.util';
 import { GroupedStudyRecordsDto } from './dto/grouped-study-records.dto';
 import { ReviewLogicService } from '../review-logic/review-logic.service';
+import duration from 'dayjs/plugin/duration';
+import { ensureFutureRecurringTime } from '../common/utils/recurring.util';
 
 dayjs.extend(customParseFormat);
 dayjs.extend(isSameOrAfter);
 dayjs.extend(isSameOrBefore);
+dayjs.extend(duration);
 
 @Injectable()
 export class StudyRecordsService {
@@ -384,24 +387,11 @@ export class StudyRecordsService {
             rule,
           );
 
-        if (
-          rule.mode === 'RECURRING' &&
-          expectedReviewAtDayjs.isBefore(monthStart)
-        ) {
-          const ruleInterval = dayjs.duration(
-            rule.value,
-            rule.unit.toLowerCase() as dayjs.ManipulateType,
-          );
-          if (ruleInterval.asMilliseconds() <= 0) continue;
-          const timeDiff = monthStart.diff(expectedReviewAtDayjs);
-          const intervalsToSkip = Math.ceil(
-            timeDiff / ruleInterval.asMilliseconds(),
-          );
-          expectedReviewAtDayjs = expectedReviewAtDayjs.add(
-            intervalsToSkip * ruleInterval.asMilliseconds(),
-            'millisecond',
-          );
-        }
+        expectedReviewAtDayjs = ensureFutureRecurringTime(
+          expectedReviewAtDayjs,
+          rule,
+          monthStart,
+        );
 
         while (expectedReviewAtDayjs.isBefore(monthEnd)) {
           const adjustedTime =

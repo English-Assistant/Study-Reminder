@@ -13,6 +13,9 @@ export class ReviewSettingsService {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * 获取用户的所有复习规则
+   */
   async getReviewRules(userId: string): Promise<ReviewRule[]> {
     this.logger.log(`正在获取用户 ${userId} 的复习规则`);
     try {
@@ -26,6 +29,9 @@ export class ReviewSettingsService {
     }
   }
 
+  /**
+   * 设置用户复习规则（事务：先删后增）
+   */
   async setReviewRules(
     userId: string,
     dto: SetReviewRulesDto,

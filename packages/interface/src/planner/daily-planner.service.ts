@@ -11,9 +11,16 @@ import {
   REVIEW_REMINDER_QUEUE,
   JOB_NAME_SEND_REVIEW,
 } from '../queue/queue.constants';
+import { ensureFutureRecurringTime } from '../common/utils/recurring.util';
 
 dayjs.extend(duration);
 
+/**
+ * 每日计划服务（DailyPlanner）
+ * ------------------------------------------------------------
+ * 每天 00:10 全量为所有用户计算接下来 26h 的复习任务，
+ * 作为 InstantPlanner 的兜底，防止服务器重启或漏算。
+ */
 @Injectable()
 export class DailyPlannerService {
   private readonly logger = new Logger(DailyPlannerService.name);
@@ -28,7 +35,12 @@ export class DailyPlannerService {
     @InjectQueue(REVIEW_REMINDER_QUEUE) private readonly queue: Queue,
   ) {}
 
-  // 每天 00:10 运行
+  /**
+   * Cron 入口：每天凌晨 00:10 执行
+   * 1. 遍历所有用户 → 重新计算未来 26 小时任务
+   * 2. reviewTime 写 Redis，sendTime 入 BullMQ
+   * 3. 覆盖 InstantPlanner 可能遗漏的情况
+   */
   @Cron('10 0 * * *')
   async handleCron() {
     this.logger.log('DailyPlanner 开始批量计算未来 26 小时复习计划');
@@ -37,9 +49,11 @@ export class DailyPlannerService {
     const now = dayjs();
     const end = now.add(this.HOURS_WINDOW, 'hour');
 
+    // 查询所有用户及其复习相关数据
     const users = await this.prisma.user.findMany({
       include: {
         reviewRules: true,
+        studyTimeWindows: true,
         studyRecords: {
           include: { course: true },
         },
@@ -51,27 +65,22 @@ export class DailyPlannerService {
       const cacheKey = `upcoming:${user.id}`;
       await redisClient.del(cacheKey); // 重建
 
+      // 遍历所有学习记录和规则，计算每条记录的下次复习时间
       for (const record of user.studyRecords) {
         for (const rule of user.reviewRules) {
           let reviewTime = this.reviewLogic.calculateNextReviewTime(
             record.studiedAt,
             rule,
           );
-          if (rule.mode === 'RECURRING' && reviewTime.isBefore(now)) {
-            const ruleInterval = dayjs.duration(
-              rule.value,
-              rule.unit.toLowerCase() as dayjs.ManipulateType,
-            );
-            const diff = now.diff(reviewTime);
-            const intervals = Math.ceil(diff / ruleInterval.asMilliseconds());
-            reviewTime = reviewTime.add(
-              intervals * ruleInterval.asMilliseconds(),
-              'millisecond',
-            );
-          }
-          if (reviewTime.isAfter(now) && reviewTime.isBefore(end)) {
-            const jobId = `${user.id}:${record.id}:${rule.id}:${reviewTime.valueOf()}`;
-            const delay = reviewTime.diff(now);
+          reviewTime = ensureFutureRecurringTime(reviewTime, rule, now);
+          const sendTime = this.reviewLogic.adjustTimeForWindows(
+            reviewTime,
+            user.studyTimeWindows,
+          );
+
+          if (sendTime.isAfter(now) && sendTime.isBefore(end)) {
+            const jobId = `${user.id}:${record.id}:${rule.id}:${sendTime.valueOf()}`;
+            const delay = sendTime.diff(now);
             await this.queue.add(
               JOB_NAME_SEND_REVIEW,
               {

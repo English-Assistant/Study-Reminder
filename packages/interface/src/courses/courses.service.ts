@@ -9,10 +9,20 @@ import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { Course } from '@prisma/client';
 
+/**
+ * 课程服务
+ * ------------------------------------------------------------
+ * 提供课程的 CRUD 能力，并做权限/唯一性校验。
+ */
 @Injectable()
 export class CoursesService {
   constructor(private prisma: PrismaService) {}
 
+  /**
+   * 创建课程（同名校验）
+   * @param createCourseDto 前端提交的课程数据
+   * @param userId 当前用户 ID
+   */
   async create(
     createCourseDto: CreateCourseDto,
     userId: string,
@@ -39,6 +49,7 @@ export class CoursesService {
     });
   }
 
+  /** 获取用户全部课程（按创建时间倒序） */
   async findAllByUserId(userId: string): Promise<Course[]> {
     return this.prisma.course.findMany({
       where: { userId },
@@ -46,6 +57,9 @@ export class CoursesService {
     });
   }
 
+  /**
+   * 根据课程 ID + 用户 ID 获取课程，并同时做权限校验
+   */
   async findOneByCourseIdAndUserId(
     courseId: string,
     userId: string,
@@ -62,6 +76,11 @@ export class CoursesService {
     return course;
   }
 
+  /**
+   * 更新课程
+   * 1. 先做权限校验
+   * 2. 若修改名称需检查同名冲突
+   */
   async update(
     courseId: string,
     updateCourseDto: UpdateCourseDto,
@@ -96,12 +115,12 @@ export class CoursesService {
     });
   }
 
+  /** 删除课程（含权限校验） */
   async remove(courseId: string, userId: string): Promise<Course> {
     const course = await this.findOneByCourseIdAndUserId(courseId, userId); // 权限检查已包含
     if (!course) {
       throw new NotFoundException(`ID 为 ${courseId} 的课程未找到或您无权删除`);
     }
-    // onDelete: Cascade 在 ManualReviewEntry 中处理了关联条目的删除
     return this.prisma.course.delete({
       where: { id: courseId },
     });

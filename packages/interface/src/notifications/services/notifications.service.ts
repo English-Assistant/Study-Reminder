@@ -4,9 +4,8 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { NotificationsGateway } from '../gateways/notifications.gateway';
 import { MailService } from '../../mail/mail.service';
-import { StudyRecord, StudyTimeWindow } from '@prisma/client';
+import { StudyRecord } from '@prisma/client';
 import dayjs from 'dayjs';
-import { ReviewLogicService } from '../../review-logic/review-logic.service';
 
 export interface ReviewReminderDetails {
   itemName: string; // 例如 StudyRecord.textTitle
@@ -26,7 +25,6 @@ export class NotificationsService {
     private readonly prisma: PrismaService,
     private readonly notificationsGateway: NotificationsGateway,
     private readonly mailService: MailService,
-    private readonly reviewLogicService: ReviewLogicService,
   ) {}
 
   private constructBaseTime(studyRecord: StudyRecord): dayjs.Dayjs {
@@ -249,51 +247,6 @@ export class NotificationsService {
       );
       throw error;
     }
-  }
-
-  /**
-   * 根据用户的学习时间窗口调整计划的通知时间。
-   * 这是仅用于通知发送的逻辑，不影响核心复习数据。
-   * @param reviewTime - 原始计算的复习时间。
-   * @param windows - 用户设置的学习时间段列表。
-   * @returns 调整后的通知时间（dayjs 对象）。
-   */
-  private adjustNotificationTimeForWindows(
-    reviewTime: dayjs.Dayjs,
-    windows: StudyTimeWindow[],
-  ): dayjs.Dayjs {
-    if (!windows || windows.length === 0) {
-      return reviewTime; // 如果未设置时间窗口，则立即发送。
-    }
-
-    const todayWindows = windows
-      .map((w) => {
-        const [startH, startM] = w.startTime.split(':').map(Number);
-        const [endH, endM] = w.endTime.split(':').map(Number);
-        return {
-          start: reviewTime.hour(startH).minute(startM).second(0),
-          end: reviewTime.hour(endH).minute(endM).second(0),
-        };
-      })
-      .sort((a, b) => a.start.valueOf() - b.start.valueOf());
-
-    // 检查原始时间是否已在某个窗口内
-    for (const window of todayWindows) {
-      if (reviewTime.isBetween(window.start, window.end, null, '[]')) {
-        return reviewTime;
-      }
-    }
-
-    // 如果不在任何窗口内，找到下一个可用的窗口起点
-    for (const window of todayWindows) {
-      if (reviewTime.isBefore(window.start)) {
-        return window.start; // 推迟到当天稍晚的窗口
-      }
-    }
-
-    // 如果晚于所有今天的窗口，则推迟到第二天的第一个窗口
-    const tomorrowFirstWindow = todayWindows[0];
-    return tomorrowFirstWindow.start.add(1, 'day');
   }
 
   /**

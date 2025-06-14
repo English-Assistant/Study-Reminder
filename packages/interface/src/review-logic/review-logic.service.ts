@@ -3,6 +3,7 @@ import { ReviewRule, IntervalUnit, ReviewMode } from '@prisma/client';
 import dayjs from 'dayjs';
 import isBetween from 'dayjs/plugin/isBetween';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
+import { calcSendTimeByWindows } from '../common/utils/time-window.util';
 
 dayjs.extend(customParseFormat);
 dayjs.extend(isBetween);
@@ -82,5 +83,22 @@ export class ReviewLogicService {
         return date;
     }
     return date.add(value, dayjsUnit);
+  }
+
+  /**
+   * 根据用户的学习时间窗口调整通知发送时间。
+   * 不会影响复习本身的 ReviewTime，只决定 SendTime。
+   * 逻辑与旧 NotificationsService.adjustNotificationTimeForWindows 保持一致，
+   * 以便在 Planner 阶段即可生成符合时间段的发送时间。
+   *
+   * @param reviewTime 原始复习时间（dayjs）
+   * @param windows 用户配置的时间段集合
+   * @returns 若 reviewTime 已处于窗口内则原样返回；否则推迟到最近可用窗口开始
+   */
+  adjustTimeForWindows(
+    reviewTime: dayjs.Dayjs,
+    windows: { startTime: string; endTime: string }[] | undefined,
+  ): dayjs.Dayjs {
+    return calcSendTimeByWindows(reviewTime, windows);
   }
 }

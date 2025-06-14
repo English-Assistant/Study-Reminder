@@ -11,6 +11,12 @@ interface SendMailConfiguration {
   template: React.ReactElement;
 }
 
+/**
+ * 邮件服务
+ * ------------------------------------------------------------
+ * 基于 Nest Mailer + React Email 进行所有模板邮件的发送。
+ * 提供统一 sendMail 封装，其他业务方法只需组装模板与主题。
+ */
 @Injectable()
 export class MailService {
   constructor(
@@ -18,12 +24,18 @@ export class MailService {
     private readonly configService: ConfigService,
   ) {}
 
+  /**
+   * 将 React 组件模板渲染为 HTML 字符串
+   */
   private generateEmail = async (
     template: React.ReactElement,
   ): Promise<string> => {
     return await render(template);
   };
 
+  /**
+   * 发送邮件（底层统一出口）
+   */
   async sendMail({ email, subject, template, text }: SendMailConfiguration) {
     const html = await this.generateEmail(template);
 
@@ -35,6 +47,7 @@ export class MailService {
     });
   }
 
+  /** 发送单条复习提醒邮件 */
   async sendReviewReminderEmail(
     email: string,
     userName: string,
@@ -62,6 +75,7 @@ export class MailService {
     });
   }
 
+  /** 发送批量复习提醒邮件（合并模板） */
   async sendBulkReviewReminderEmail(
     email: string,
     userName: string,
@@ -93,6 +107,7 @@ export class MailService {
     });
   }
 
+  /** 发送注册 / 绑定邮箱验证码 */
   async sendVerificationCodeEmail(
     email: string,
     userName: string,
@@ -119,6 +134,7 @@ export class MailService {
     });
   }
 
+  /** 发送重置密码验证码邮件 */
   async sendResetPasswordCodeEmail(
     email: string,
     userName: string,
@@ -143,6 +159,7 @@ export class MailService {
     });
   }
 
+  /** 发送注销账号验证码邮件 */
   async sendUnregisterCodeEmail(
     email: string,
     userName: string,

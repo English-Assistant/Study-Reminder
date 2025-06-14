@@ -68,6 +68,7 @@ export class UpcomingReviewsService {
           orderBy: { studiedAt: 'desc' },
         },
         reviewRules: true,
+        studyTimeWindows: true,
       },
     });
 
@@ -92,41 +93,69 @@ export class UpcomingReviewsService {
         continue;
       }
       for (const rule of reviewRules) {
-        let expectedReviewAtDayjs =
-          this.reviewLogicService.calculateNextReviewTime(
-            record.studiedAt,
-            rule,
-          );
-
-        // 使用 util 保证循环规则时间位于未来
-        expectedReviewAtDayjs = ensureFutureRecurringTime(
-          expectedReviewAtDayjs,
+        // 1) 计算首个（可能在过去）复习时间
+        let reviewTime = this.reviewLogicService.calculateNextReviewTime(
+          record.studiedAt,
           rule,
-          startOfToday,
         );
 
-        if (expectedReviewAtDayjs) {
-          expectedReviewAtDayjs =
-            this.reviewLogicService.adjustReviewTimeForStudyWindows(
-              expectedReviewAtDayjs,
-            );
-        }
+        // 2) 若为循环规则且已早于 today，则滚动至未来
+        reviewTime = ensureFutureRecurringTime(reviewTime, rule, startOfToday);
 
-        if (
-          expectedReviewAtDayjs &&
-          expectedReviewAtDayjs.isAfter(startOfToday) && // 确保时间在今天零点之后
-          expectedReviewAtDayjs.isBefore(endDateLimit)
-        ) {
-          upcomingReviews.push({
-            studyRecordId: record.id,
-            textTitle: record.textTitle,
-            courseId: record.courseId,
-            courseName: record.course.name,
-            courseColor: record.course.color,
-            expectedReviewAt: expectedReviewAtDayjs.toDate(),
-            ruleId: rule.id,
-            ruleDescription: getRuleDescription(rule),
-          });
+        // 3) 根据用户学习时间窗口调整发送时间
+        const windows = userWithData.studyTimeWindows;
+
+        // 当 windows 不存在时，同步返回 reviewTime。
+        const sendTime = this.reviewLogicService.adjustTimeForWindows(
+          reviewTime,
+          windows,
+        );
+
+        // 4) 推入满足条件的复习提醒（递归处理循环规则）
+        const pushIfValid = (time: dayjs.Dayjs) => {
+          if (time.isAfter(startOfToday) && time.isBefore(endDateLimit)) {
+            upcomingReviews.push({
+              studyRecordId: record.id,
+              textTitle: record.textTitle,
+              courseId: record.courseId,
+              courseName: record.course.name,
+              courseColor: record.course.color,
+              expectedReviewAt: time.toDate(),
+              ruleId: rule.id,
+              ruleDescription: getRuleDescription(rule),
+            });
+          }
+        };
+
+        pushIfValid(sendTime);
+
+        // 若是循环规则，则继续迭代直至超过 endDateLimit
+        if (rule.mode === 'RECURRING') {
+          const ruleInterval = dayjs.duration(
+            rule.value,
+            rule.unit.toLowerCase() as dayjs.ManipulateType,
+          );
+
+          if (ruleInterval.asMilliseconds() > 0) {
+            let nextTime = reviewTime.add(
+              ruleInterval.asMilliseconds(),
+              'millisecond',
+            );
+            nextTime = ensureFutureRecurringTime(nextTime, rule, startOfToday);
+
+            while (nextTime.isBefore(endDateLimit)) {
+              const adjustedNext = this.reviewLogicService.adjustTimeForWindows(
+                nextTime,
+                windows,
+              );
+              pushIfValid(adjustedNext);
+
+              nextTime = nextTime.add(
+                ruleInterval.asMilliseconds(),
+                'millisecond',
+              );
+            }
+          }
         }
       }
     }

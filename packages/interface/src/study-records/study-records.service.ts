@@ -329,6 +329,14 @@ export class StudyRecordsService {
     const monthStart = dayjs(`${year}-${month}-01`).startOf('month');
     const monthEnd = monthStart.endOf('month');
 
+    // 计算以周一为起点、周日为终点的日历区间（共 6×7 = 42 格）
+    const startOffset = (monthStart.day() + 6) % 7; // 把周一映射为 0，周日映射为 6
+    const calendarStart = monthStart.subtract(startOffset, 'day');
+
+    const endDowIndex = (monthEnd.day() + 6) % 7; // 同样的映射
+    const endOffset = 6 - endDowIndex;
+    const calendarEnd = monthEnd.add(endOffset, 'day').endOf('day');
+
     const studyRecordSelectScope = {
       id: true,
       userId: true,
@@ -365,6 +373,8 @@ export class StudyRecordsService {
 
     const { studyRecords, reviewRules } = userWithData;
 
+    // 先收集「本月」学习记录用于优先展示（studiedAt 在月内），
+    // 其它月份但存在复习计划的记录稍后会自动加入 map
     const recordsInMonth = studyRecords.filter((record) =>
       dayjs(record.studiedAt).isBetween(monthStart, monthEnd, null, '[]'),
     );
@@ -387,19 +397,20 @@ export class StudyRecordsService {
             rule,
           );
 
+        // 确保滚动到日历窗口的起始位置（例如 5 月 26 ~）
         expectedReviewAtDayjs = ensureFutureRecurringTime(
           expectedReviewAtDayjs,
           rule,
-          monthStart,
+          calendarStart,
         );
 
-        while (expectedReviewAtDayjs.isBefore(monthEnd)) {
+        while (expectedReviewAtDayjs.isBefore(calendarEnd)) {
           const adjustedTime =
             this.reviewLogicService.adjustReviewTimeForStudyWindows(
               expectedReviewAtDayjs,
             );
 
-          if (adjustedTime.isBetween(monthStart, monthEnd, null, '[]')) {
+          if (adjustedTime.isBetween(calendarStart, calendarEnd, null, '[]')) {
             const reviewItem: UpcomingReviewInRecordDto = {
               studyRecordId: record.id,
               textTitle: record.textTitle,
@@ -439,6 +450,13 @@ export class StudyRecordsService {
           record.upcomingReviewsInMonth,
           (review) => dayjs(review.expectedReviewAt).valueOf(),
         ),
+        reviewRules: userWithData.reviewRules.map((r) => ({
+          id: r.id,
+          value: r.value,
+          unit: r.unit,
+          mode: r.mode,
+          note: r.note ?? null,
+        })),
       }),
     );
 
@@ -476,5 +494,6 @@ export class StudyRecordsService {
         }
       : null,
     upcomingReviewsInMonth: [],
+    reviewRules: [],
   });
 }

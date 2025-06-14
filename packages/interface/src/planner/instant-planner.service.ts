@@ -11,6 +11,7 @@ import {
   JOB_NAME_SEND_REVIEW,
 } from '../queue/queue.constants';
 import { ensureFutureRecurringTime } from '../common/utils/recurring.util';
+import { ReviewItem as BaseReviewItem } from '../notifications/types/review-item.type';
 
 dayjs.extend(duration);
 
@@ -80,10 +81,8 @@ export class InstantPlannerService {
       now.subtract(1, 'day').valueOf(),
     );
 
-    type ReviewItem = {
+    type ReviewItem = BaseReviewItem & {
       sendTime: dayjs.Dayjs; // 实际通知时间，已按学习时间段调整
-      itemName: string;
-      courseName: string;
     };
     const GAP_MS = 5 * 60 * 1000; // 5 分钟滑动窗口（链接式）
     const candidates: ReviewItem[] = [];
@@ -118,6 +117,7 @@ export class InstantPlannerService {
             sendTime,
             itemName: record.textTitle,
             courseName: record.course?.name || '未知课程',
+            time: reviewTime.format('HH:mm'),
           });
         }
       }
@@ -154,6 +154,7 @@ export class InstantPlannerService {
           currentGroup.push({
             itemName: item.itemName,
             courseName: item.courseName,
+            time: item.time,
           });
           continue;
         }
@@ -164,6 +165,7 @@ export class InstantPlannerService {
           currentGroup.push({
             itemName: item.itemName,
             courseName: item.courseName,
+            time: item.time,
           });
           // 更新 groupStartTs 以链式延长窗口
           groupStartTs = item.sendTime.valueOf();
@@ -175,6 +177,7 @@ export class InstantPlannerService {
           currentGroup.push({
             itemName: item.itemName,
             courseName: item.courseName,
+            time: item.time,
           });
         }
       }

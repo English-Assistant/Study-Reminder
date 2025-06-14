@@ -6,6 +6,7 @@ import * as _ from 'lodash-es';
 import type { StudyRecordWithReviewsDto } from '@y/interface/study-records/dto/study-record-with-reviews.dto.js';
 import dayjs from 'dayjs';
 import { Tag, Tooltip } from 'antd';
+import clsx from 'clsx';
 
 interface Props {
   _date: Dayjs;
@@ -14,7 +15,31 @@ interface Props {
   monthlyData: StudyRecordWithReviewsDto[];
 }
 
+// 计算复习项状态：过去、当前、未来
+// referenceDate: 日历单元格日期（不含时分秒）
+function getReviewStatus(
+  expected: dayjs.Dayjs,
+  referenceDate: dayjs.Dayjs,
+): 'past' | 'current' | 'future' {
+  const now = dayjs();
+  const reference = referenceDate
+    .hour(now.hour())
+    .minute(now.minute())
+    .second(0)
+    .millisecond(0);
+
+  const diffMinutes = expected.diff(reference, 'minute');
+  if (diffMinutes < -60) {
+    return 'past';
+  }
+  if (diffMinutes > 60) {
+    return 'future';
+  }
+  return 'current';
+}
+
 export const SubItem: FC<Props> = ({
+  _date,
   entriesForDate,
   handleOpenEditModal,
   monthlyData,
@@ -67,8 +92,15 @@ export const SubItem: FC<Props> = ({
             </li>
           );
         }
+        // 根据时间段决定样式透明度或颜色
+        const status = getReviewStatus(dayjs(item.expectedReviewAt), _date);
+        const liClass = clsx('cursor-default pos-relative pl-3', {
+          'opacity-50': status === 'past',
+          'opacity-70': status === 'future',
+        });
+
         return (
-          <li key={item._key} className="cursor-default pos-relative pl-3">
+          <li key={item._key} className={liClass}>
             <Tooltip
               placement="leftTop"
               title={`复习时间：${dayjs(item.expectedReviewAt).format(

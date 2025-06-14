@@ -8,11 +8,7 @@ import {
   Hr,
 } from '@react-email/components';
 import * as React from 'react';
-
-interface ReviewItem {
-  itemName: string;
-  courseName: string;
-}
+import { ReviewItem } from '../src/notifications/types/review-item.type';
 
 interface BulkReminderEmailProps {
   userName: string;
@@ -35,6 +31,7 @@ export const ReviewReminderBulkEmail = ({
             {items.map((it, idx) => (
               <li key={idx}>
                 <strong>{it.itemName}</strong> - <em>{it.courseName}</em>
+                {it.time ? `，计划时间 ${it.time}` : ''}
               </li>
             ))}
           </ul>

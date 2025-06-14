@@ -13,6 +13,7 @@ import {
   Button,
   Popconfirm,
 } from 'antd';
+import { Link } from '@tanstack/react-router';
 import type { Dayjs } from 'dayjs';
 import type { FormInstance } from 'antd';
 import { useRequest } from 'ahooks';
@@ -256,6 +257,13 @@ export function EntryFormModal({
           name="courseId"
           label="选择课程"
           rules={[{ required: true, message: '请选择一个课程!' }]}
+          extra={
+            !loadingCourses && (coursesData?.length ?? 0) === 0 ? (
+              <Link className="mt-1 block" to="/courses">
+                当前课程为空，点击添加课程
+              </Link>
+            ) : undefined
+          }
         >
           <Select
             placeholder="请选择课程"

@@ -6,10 +6,12 @@ import { NotificationsGateway } from '../gateways/notifications.gateway';
 import { MailService } from '../../mail/mail.service';
 import { StudyRecord } from '@prisma/client';
 import dayjs from 'dayjs';
+import { ReviewItem } from '../types/review-item.type';
 
 export interface ReviewReminderDetails {
   itemName: string; // 例如 StudyRecord.textTitle
   courseName: string; // 课程名称
+  time?: string; // HH:mm，可选
 }
 
 /**
@@ -134,6 +136,7 @@ export class NotificationsService {
             const reviewDetails: ReviewReminderDetails = {
               itemName: record.textTitle,
               courseName: record.course?.name || '未知课程',
+              time: adjustedTime.format('HH:mm'),
             };
 
             if (user.settings.emailNotification && user.email) {
@@ -298,10 +301,7 @@ export class NotificationsService {
    *   1. items.length === 1 → 走原有单条提醒逻辑（保证邮件模板一致）。
    *   2. items.length >= 2 → 走批量邮件&合并应用内通知。
    */
-  async sendBulkReminder(
-    userId: string,
-    items: { itemName: string; courseName: string }[],
-  ) {
+  async sendBulkReminder(userId: string, items: ReviewItem[]) {
     if (items.length === 0) return;
 
     const user = await this.prisma.user.findUnique({
@@ -321,12 +321,17 @@ export class NotificationsService {
         await this.sendReviewReminderEmail(user.email, user.username, {
           itemName: it.itemName,
           courseName: it.courseName,
+          time: it.time,
         });
       } else {
         await this.mailService.sendBulkReviewReminderEmail(
           user.email,
           user.username,
-          items,
+          items.map((it: ReviewItem) => ({
+            itemName: it.itemName,
+            courseName: it.courseName,
+            time: it.time,
+          })),
         );
       }
     }
@@ -337,7 +342,7 @@ export class NotificationsService {
         const [it] = items;
         this.sendInAppNotification(user.id, {
           title: `复习提醒: ${it.itemName} - ${it.courseName}`,
-          body: `现在是计划的复习时间，请完成复习。`,
+          body: `计划时间 ${it.time}，请完成复习。`,
           tag: it.itemName,
         });
       } else {
@@ -345,7 +350,10 @@ export class NotificationsService {
           title: `您有 ${items.length} 个待复习任务`,
           body: items
             .slice(0, 3)
-            .map((it) => `${it.itemName} - ${it.courseName}`)
+            .map(
+              (it: ReviewItem) =>
+                `${it.itemName} - ${it.courseName} (${it.time})`,
+            )
             .join('；'),
           tag: 'bulk-review',
         });

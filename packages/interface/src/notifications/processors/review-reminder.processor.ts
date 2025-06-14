@@ -3,11 +3,7 @@ import { Job } from 'bullmq';
 import { REVIEW_REMINDER_QUEUE } from '../../queue/queue.constants';
 import { NotificationsService } from '../services/notifications.service';
 import { Injectable, Logger } from '@nestjs/common';
-
-interface ReviewItem {
-  itemName: string;
-  courseName: string;
-}
+import { ReviewItem } from '../types/review-item.type';
 
 interface ReviewReminderJobData {
   userId: string;

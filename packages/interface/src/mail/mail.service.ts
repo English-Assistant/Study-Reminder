@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { MailerService } from '@nestjs-modules/mailer';
 import { render } from '@react-email/render';
 import * as React from 'react';
+import { ReviewItem } from '../notifications/types/review-item.type';
 
 interface SendMailConfiguration {
   email: string;
@@ -79,7 +80,7 @@ export class MailService {
   async sendBulkReviewReminderEmail(
     email: string,
     userName: string,
-    items: { itemName: string; courseName: string }[],
+    items: ReviewItem[],
   ): Promise<void> {
     /**
      * 发送「合并复习提醒」邮件。
@@ -99,11 +100,16 @@ export class MailService {
 
     const subject = `您有 ${items.length} 个待复习任务`;
 
+    const plainLines = items.map(
+      (it) => `${it.itemName} - ${it.courseName} (${it.time})`,
+    );
+    const text = [subject, ...plainLines].join('\n');
+
     await this.sendMail({
       email,
       subject,
       template,
-      text: subject,
+      text,
     });
   }
 

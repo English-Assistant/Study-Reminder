@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.16.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.15.0...v1.16.0) (2025-06-14)
+
+
+### Features
+
+* 优化复习提醒功能，添加课程为空时的链接提示，重构复习项状态计算逻辑，更新复习邮件模板以包含计划时间 ([87e6339](https://github.com/English-Assistant/Study-Reminder/commit/87e63395100d281bc88038cbed379852ca4c00a9))
+
 ## [1.15.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.14.0...v1.15.0) (2025-06-14)
 
 

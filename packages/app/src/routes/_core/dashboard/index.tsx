@@ -1,5 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router';
-import { Typography, App, Spin, Tabs, Divider, Badge, Tag, Empty } from 'antd';
+import {
+  Typography,
+  App,
+  Spin,
+  Tabs,
+  Divider,
+  Badge,
+  Tag,
+  Empty,
+  Tooltip,
+} from 'antd';
 import { useRequest } from 'ahooks';
 import {
   getAllStudyRecordsApi,
@@ -10,6 +20,7 @@ import { getUpcomingReviewsApi } from '@/apis/upcoming-reviews';
 import dayjs from 'dayjs';
 import CheckRecord from './-CheckRecord';
 import { StatisticCard } from './-StatisticCard';
+import { QuestionCircleOutlined } from '@ant-design/icons';
 
 const { Title } = Typography;
 
@@ -109,6 +120,35 @@ function DashboardComponent() {
                     children: (
                       <div className="flex flex-wrap gap-3 max-h-400px overflow-y-auto">
                         {f.courses.map((course) => {
+                          const isToday = dayjs(f.date).isSame(dayjs(), 'day');
+                          const now = dayjs();
+                          const windowStart = now.subtract(1, 'hour');
+                          const upcoming = course.reviews.filter((r) => {
+                            const t = dayjs(r.expectedReviewAt);
+                            return t.isAfter(windowStart);
+                          });
+                          const passed = course.reviews.filter((r) => {
+                            const t = dayjs(r.expectedReviewAt);
+                            return (
+                              t.isBefore(windowStart) || t.isSame(windowStart)
+                            );
+                          });
+
+                          const renderList = (list: typeof course.reviews) =>
+                            list.map((review) => (
+                              <div
+                                key={review.textTitle + review.expectedReviewAt}
+                                className="color-#444 text-size-3.75 lh-5.6 flex flex-justify-between"
+                              >
+                                <div>{review.textTitle}</div>
+                                <div className="text-size-3.5">
+                                  {dayjs(review.expectedReviewAt).format(
+                                    'HH:mm',
+                                  )}
+                                </div>
+                              </div>
+                            ));
+
                           return (
                             <div
                               key={course.courseId}
@@ -124,26 +164,39 @@ function DashboardComponent() {
                                   }
                                 />
                               </div>
-                              <div className="color-#666 text-size-3.5 lh-5.2 my-4">
-                                {course.reviews.length}个复习计划
-                              </div>
-                              {course.reviews.map((review) => {
-                                return (
-                                  <div
-                                    key={
-                                      review.textTitle + review.expectedReviewAt
-                                    }
-                                    className="color-#444 text-size-3.75 lh-5.6 flex flex-justify-between"
-                                  >
-                                    <div>{review.textTitle}</div>
-                                    <div className="text-size-3.5">
-                                      {dayjs(review.expectedReviewAt).format(
-                                        'HH:mm',
-                                      )}
-                                    </div>
+                              {isToday ? (
+                                <>
+                                  {/* 待复习 */}
+                                  {upcoming.length > 0 && (
+                                    <>
+                                      <div className="color-#666 text-size-3.5 lh-5.2 my-2 flex items-center gap-1">
+                                        待复习（{upcoming.length}）
+                                        <Tooltip title="包含当前时间前 1 小时至今日 23:59 的复习项">
+                                          <QuestionCircleOutlined />
+                                        </Tooltip>
+                                      </div>
+                                      {renderList(upcoming)}
+                                    </>
+                                  )}
+
+                                  {/* 已过复习 */}
+                                  {passed.length > 0 && (
+                                    <>
+                                      <div className="color-#666 text-size-3.5 lh-5.2 my-2">
+                                        已过复习（{passed.length}）
+                                      </div>
+                                      {renderList(passed)}
+                                    </>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <div className="color-#666 text-size-3.5 lh-5.2 my-4">
+                                    {course.reviews.length}个复习计划
                                   </div>
-                                );
-                              })}
+                                  {renderList(course.reviews)}
+                                </>
+                              )}
                             </div>
                           );
                         })}

@@ -102,16 +102,7 @@ export class UpcomingReviewsService {
         // 2) 若为循环规则且已早于 today，则滚动至未来
         reviewTime = ensureFutureRecurringTime(reviewTime, rule, startOfToday);
 
-        // 3) 根据用户学习时间窗口调整发送时间
-        const windows = userWithData.studyTimeWindows;
-
-        // 当 windows 不存在时，同步返回 reviewTime。
-        const sendTime = this.reviewLogicService.adjustTimeForWindows(
-          reviewTime,
-          windows,
-        );
-
-        // 4) 推入满足条件的复习提醒（递归处理循环规则）
+        // 3) 推入满足条件的复习提醒（递归处理循环规则）
         const pushIfValid = (time: dayjs.Dayjs) => {
           if (time.isAfter(startOfToday) && time.isBefore(endDateLimit)) {
             upcomingReviews.push({
@@ -127,7 +118,7 @@ export class UpcomingReviewsService {
           }
         };
 
-        pushIfValid(sendTime);
+        pushIfValid(reviewTime);
 
         // 若是循环规则，则继续迭代直至超过 endDateLimit
         if (rule.mode === 'RECURRING') {
@@ -144,11 +135,7 @@ export class UpcomingReviewsService {
             nextTime = ensureFutureRecurringTime(nextTime, rule, startOfToday);
 
             while (nextTime.isBefore(endDateLimit)) {
-              const adjustedNext = this.reviewLogicService.adjustTimeForWindows(
-                nextTime,
-                windows,
-              );
-              pushIfValid(adjustedNext);
+              pushIfValid(nextTime);
 
               nextTime = nextTime.add(
                 ruleInterval.asMilliseconds(),

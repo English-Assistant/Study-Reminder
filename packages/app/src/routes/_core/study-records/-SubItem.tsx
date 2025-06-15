@@ -29,10 +29,10 @@ function getReviewStatus(
     .millisecond(0);
 
   const diffMinutes = expected.diff(reference, 'minute');
-  if (diffMinutes < -60) {
+  if (diffMinutes < -90) {
     return 'past';
   }
-  if (diffMinutes > 60) {
+  if (diffMinutes > 90) {
     return 'future';
   }
   return 'current';

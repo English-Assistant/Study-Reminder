@@ -34,12 +34,4 @@ export class StudyRecordWithReviewsDto
 
   // 可选：如果需要直接在结果中包含课程名称
   course?: CourseSummaryForDto | null; // 包含课程的摘要信息
-
-  reviewRules?: {
-    id: number;
-    value: number;
-    unit: string;
-    mode: string;
-    note: string | null;
-  }[];
 }

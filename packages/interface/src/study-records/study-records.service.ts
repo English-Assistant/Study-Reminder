@@ -450,13 +450,6 @@ export class StudyRecordsService {
           record.upcomingReviewsInMonth,
           (review) => dayjs(review.expectedReviewAt).valueOf(),
         ),
-        reviewRules: userWithData.reviewRules.map((r) => ({
-          id: r.id,
-          value: r.value,
-          unit: r.unit,
-          mode: r.mode,
-          note: r.note ?? null,
-        })),
       }),
     );
 
@@ -494,6 +487,5 @@ export class StudyRecordsService {
         }
       : null,
     upcomingReviewsInMonth: [],
-    reviewRules: [],
   });
 }

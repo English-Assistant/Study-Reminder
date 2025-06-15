@@ -22,7 +22,14 @@ export const ReviewReminderBulkEmail = ({
   return (
     <Html>
       <Head />
-      <Preview>{`您有 ${items.length} 个待复习任务`}</Preview>
+      <Preview>
+        {items.length === 1
+          ? `${items[0].itemName} - ${items[0].courseName}`
+          : items
+              .slice(0, 3)
+              .map((it) => `${it.itemName}-${it.courseName}`)
+              .join('；') + (items.length > 3 ? '…' : '')}
+      </Preview>
       <Body style={main}>
         <Container style={container}>
           <Text style={greeting}>Hey, {userName}</Text>

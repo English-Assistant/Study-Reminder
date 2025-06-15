@@ -81,6 +81,18 @@ export class InstantPlannerService {
       now.subtract(1, 'day').valueOf(),
     );
 
+    // ---------- 清理旧的延时任务（该用户） ----------
+    const existingJobs = await this.queue.getJobs(['delayed', 'waiting']);
+    for (const job of existingJobs) {
+      if (!job.id) continue;
+      if (typeof job.id === 'string' && job.id.startsWith(`${userId}:`)) {
+        const ts = Number(job.id.split(':')[1]);
+        if (!isNaN(ts) && ts >= now.valueOf() && ts <= end.valueOf()) {
+          await job.remove();
+        }
+      }
+    }
+
     type ReviewItem = BaseReviewItem & {
       sendTime: dayjs.Dayjs; // 实际通知时间，已按学习时间段调整
     };

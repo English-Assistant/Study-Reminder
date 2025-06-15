@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.17.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.16.0...v1.17.0) (2025-06-15)
+
+
+### Features
+
+* 更新仪表盘复习项展示逻辑，添加待复习和已过复习的分类显示，优化复习状态计算逻辑，新增接口服务架构文档 ([4162d53](https://github.com/English-Assistant/Study-Reminder/commit/4162d536de553ee9966f7f55c7c70134ec3edd1f))
+
 ## [1.16.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.15.0...v1.16.0) (2025-06-14)
 
 

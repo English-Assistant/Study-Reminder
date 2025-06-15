@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.18.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.17.0...v1.18.0) (2025-06-15)
+
+
+### Features
+
+* 优化批量复习提醒邮件模板，动态展示待复习任务名称，清理旧的延时任务逻辑 ([dd5e337](https://github.com/English-Assistant/Study-Reminder/commit/dd5e3370699034db083f7775e526aeb7cc9fbdc4))
+
 ## [1.17.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.16.0...v1.17.0) (2025-06-15)
 
 

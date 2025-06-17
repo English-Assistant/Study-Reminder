@@ -7,12 +7,16 @@ import type { StudyRecordWithReviewsDto } from '@y/interface/study-records/dto/s
 import dayjs from 'dayjs';
 import { Tag, Tooltip } from 'antd';
 import clsx from 'clsx';
+import type { CourseSummaryDto } from '@y/interface/study-records/dto/study-records-by-month-response.dto.ts';
+
+type CourseInfo = CourseSummaryDto;
 
 interface Props {
   _date: Dayjs;
   entriesForDate: CalendarDisplayEvent[];
   handleOpenEditModal: (item: StudyRecordWithReviewsDto) => void;
   monthlyData: StudyRecordWithReviewsDto[];
+  coursesMap: Record<string, CourseInfo>;
 }
 
 // 计算复习项状态：过去、当前、未来
@@ -43,6 +47,7 @@ export const SubItem: FC<Props> = ({
   entriesForDate,
   handleOpenEditModal,
   monthlyData,
+  coursesMap,
 }) => {
   const sortData = _.sortBy(entriesForDate, (item) =>
     isStudyRecord(item)
@@ -74,18 +79,20 @@ export const SubItem: FC<Props> = ({
                       {dayjs(item.studiedAt).format('YYYY-MM-DD HH:mm')}
                     </p>
                     {item.note && <p>备注：{item.note}</p>}
-                    {item.course?.note && <p>课程备注：{item.course?.note}</p>}
+                    {coursesMap[item.courseId]?.note && (
+                      <p>课程备注：{coursesMap[item.courseId]?.note}</p>
+                    )}
                     <p>点击编辑、删除对应记录</p>
                   </>
                 }
               >
                 <Tag
-                  color={item.course?.color || 'blue'}
+                  color={coursesMap[item.courseId]?.color || 'blue'}
                   className="w-100% m-0! p-2"
                 >
                   <div className="flex flex-justify-between ">
                     <div>{item.textTitle}</div>
-                    <div>{item.course?.name}</div>
+                    <div>{coursesMap[item.courseId]?.name}</div>
                   </div>
                 </Tag>
               </Tooltip>
@@ -111,12 +118,12 @@ export const SubItem: FC<Props> = ({
                 <div
                   className="w-1 pos-absolute top-0 bottom-0 left-0"
                   style={{
-                    background: item.course.color!,
+                    background: coursesMap[item.courseId]?.color || 'blue',
                   }}
                 ></div>
                 <div className="flex flex-justify-between">
                   <div>{item.textTitle}</div>
-                  <div className="ml-1">{item.course.name}</div>
+                  <div className="ml-1">{coursesMap[item.courseId]?.name}</div>
                 </div>
                 <div className="flex items-center">
                   <div className="flex-1 break-words whitespace-normal overflow-hidden">

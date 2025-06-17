@@ -20,10 +20,14 @@ import {
 } from './dto/study-record-with-reviews.dto';
 import { isEmpty, sortBy, groupBy, map, orderBy } from 'lodash';
 import { getRuleDescription } from '../common/review-rule.util';
-import { GroupedStudyRecordsDto } from './dto/grouped-study-records.dto';
 import { ReviewLogicService } from '../review-logic/review-logic.service';
 import duration from 'dayjs/plugin/duration';
 import { ensureFutureRecurringTime } from '../common/utils/recurring.util';
+import {
+  StudyRecordsByMonthResponseDto,
+  CourseSummaryDto,
+} from './dto/study-records-by-month-response.dto';
+import { StudyRecordsByDaysResponseDto } from './dto/study-records-by-days-response.dto';
 
 dayjs.extend(customParseFormat);
 dayjs.extend(isSameOrAfter);
@@ -96,7 +100,7 @@ export class StudyRecordsService {
     courseId?: string,
     filterDate?: string,
     addedWithinDays?: number,
-  ): Promise<GroupedStudyRecordsDto[]> {
+  ): Promise<StudyRecordsByDaysResponseDto> {
     this.logger.log(
       `正在获取用户 ${userId} 的学习记录，课程ID：${courseId || '未传递'}，过滤日期：${filterDate || '未传递'}，添加天数范围：${addedWithinDays || '未传递'}`,
     );
@@ -134,8 +138,14 @@ export class StudyRecordsService {
     try {
       const records = await this.prisma.studyRecord.findMany({
         where: whereClause,
-        include: {
-          course: true,
+        select: {
+          id: true,
+          userId: true,
+          courseId: true,
+          studiedAt: true,
+          textTitle: true,
+          note: true,
+          createdAt: true,
         },
       });
 
@@ -148,7 +158,15 @@ export class StudyRecordsService {
         records: orderBy(dayRecords, ['studiedAt'], ['desc']),
       }));
 
-      return orderBy(result, ['date'], ['desc']);
+      const sortedRecords = orderBy(result, ['date'], ['desc']);
+
+      // fetch courses list
+      const courses: CourseSummaryDto[] = await this.prisma.course.findMany({
+        where: { userId },
+        select: { id: true, name: true, color: true, note: true },
+      });
+
+      return { courses, groups: sortedRecords };
     } catch (error) {
       this.logger.error(
         `获取用户 ${userId} 的学习记录失败：${error.message}`,
@@ -321,7 +339,7 @@ export class StudyRecordsService {
     userId: string,
     year: number,
     month: number, // 1-indexed
-  ): Promise<StudyRecordWithReviewsDto[]> {
+  ): Promise<StudyRecordsByMonthResponseDto> {
     this.logger.log(
       `正在获取用户 ${userId} 在 ${year}年${month}月的学习记录和复习计划`,
     );
@@ -345,14 +363,6 @@ export class StudyRecordsService {
       note: true,
       studiedAt: true,
       createdAt: true,
-      course: {
-        select: {
-          id: true,
-          name: true,
-          color: true,
-          note: true,
-        },
-      },
     };
 
     const userWithData = await this.prisma.user.findUnique({
@@ -368,7 +378,10 @@ export class StudyRecordsService {
 
     if (!userWithData) {
       this.logger.warn(`未找到用户 ${userId} 的数据。`);
-      return [];
+      return {
+        courses: [],
+        records: [],
+      };
     }
 
     const { studyRecords, reviewRules } = userWithData;
@@ -379,8 +392,17 @@ export class StudyRecordsService {
       dayjs(record.studiedAt).isBetween(monthStart, monthEnd, null, '[]'),
     );
 
+    // 提前获取课程列表供返回
+    const courses: CourseSummaryDto[] = await this.prisma.course.findMany({
+      where: { userId },
+      select: { id: true, name: true, color: true, note: true },
+    });
+
     if (isEmpty(reviewRules)) {
-      return recordsInMonth.map(this.mapToDto);
+      return {
+        courses,
+        records: recordsInMonth.map(this.mapToDto),
+      };
     }
 
     const recordsInMonthMap = new Map<string, StudyRecordWithReviewsDto>(
@@ -388,8 +410,6 @@ export class StudyRecordsService {
     );
 
     for (const record of studyRecords) {
-      if (!record.course) continue;
-
       for (const rule of reviewRules) {
         let expectedReviewAtDayjs =
           this.reviewLogicService.calculateNextReviewTime(
@@ -413,8 +433,8 @@ export class StudyRecordsService {
           if (adjustedTime.isBetween(calendarStart, calendarEnd, null, '[]')) {
             const reviewItem: UpcomingReviewInRecordDto = {
               studyRecordId: record.id,
+              courseId: record.courseId,
               textTitle: record.textTitle,
-              course: record.course,
               expectedReviewAt: adjustedTime.toDate(),
               ruleId: rule.id,
               ruleDescription: getRuleDescription(rule),
@@ -443,7 +463,7 @@ export class StudyRecordsService {
       }
     }
 
-    const finalResults = Array.from(recordsInMonthMap.values()).map(
+    const recordsArray = Array.from(recordsInMonthMap.values()).map(
       (record) => ({
         ...record,
         upcomingReviewsInMonth: sortBy(
@@ -453,7 +473,14 @@ export class StudyRecordsService {
       }),
     );
 
-    return sortBy(finalResults, (record) => dayjs(record.studiedAt).valueOf());
+    const sortedRecords = sortBy(recordsArray, (record) =>
+      dayjs(record.studiedAt).valueOf(),
+    );
+
+    return {
+      courses,
+      records: sortedRecords,
+    };
   }
 
   private mapToDto = (record: {
@@ -464,12 +491,6 @@ export class StudyRecordsService {
     note: string | null;
     studiedAt: Date;
     createdAt: Date;
-    course: {
-      id: string;
-      name: string;
-      color: string | null;
-      note: string | null;
-    } | null;
   }): StudyRecordWithReviewsDto => ({
     id: record.id,
     userId: record.userId,
@@ -478,14 +499,6 @@ export class StudyRecordsService {
     note: record.note,
     studiedAt: record.studiedAt,
     createdAt: record.createdAt,
-    course: record.course
-      ? {
-          id: record.course.id,
-          name: record.course.name,
-          color: record.course.color,
-          note: record.course.note,
-        }
-      : null,
     upcomingReviewsInMonth: [],
   });
 }

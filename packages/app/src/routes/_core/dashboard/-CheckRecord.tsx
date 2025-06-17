@@ -1,17 +1,16 @@
 import ReactECharts from 'echarts-for-react';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
-import { useMemo } from 'react';
 import { Empty, Spin } from 'antd';
-import type { GroupedStudyRecordsDto } from '@y/interface/study-records/dto/grouped-study-records.dto.js';
-import type { GroupedUpcomingReviewsDto } from '@y/interface/upcoming-reviews/dto/grouped-upcoming-reviews.dto.js';
+import type { GroupedStudyRecordsSimpleDto } from '@y/interface/study-records/dto/study-records-by-days-response.dto.ts';
+import type { DateUpcomingReviewsDto } from '@y/interface/upcoming-reviews/dto/upcoming-reviews-response.dto.ts';
 
 dayjs.extend(isoWeek);
 
 interface CheckRecordProps {
   loading: boolean;
-  studyRecords: GroupedStudyRecordsDto[];
-  upcomingReviews: GroupedUpcomingReviewsDto[];
+  studyRecords: GroupedStudyRecordsSimpleDto[];
+  upcomingReviews: DateUpcomingReviewsDto[];
 }
 
 const weekMap: { [key: number]: string } = {
@@ -29,7 +28,7 @@ const CheckRecord: React.FC<CheckRecordProps> = ({
   studyRecords = [],
   upcomingReviews = [],
 }) => {
-  const chartData = useMemo(() => {
+  const chartData = (() => {
     // 数据预处理：将数组转为Map，方便按日期查找
     const recordsMap = new Map(
       studyRecords.map((g) => [g.date, g.records.length]),
@@ -60,7 +59,7 @@ const CheckRecord: React.FC<CheckRecordProps> = ({
         pending: pendingCount,
       };
     });
-  }, [studyRecords, upcomingReviews]);
+  })();
 
   const option = {
     tooltip: {
@@ -188,10 +187,7 @@ const CheckRecord: React.FC<CheckRecordProps> = ({
     ],
   };
 
-  const hasData = useMemo(
-    () => chartData.some((d) => d.completed > 0 || d.pending > 0),
-    [chartData],
-  );
+  const hasData = chartData.some((d) => d.completed > 0 || d.pending > 0);
 
   return (
     <Spin spinning={loading}>

@@ -7,9 +7,13 @@ dayjs.extend(duration);
 import { ensureFutureRecurringTime } from '../common/utils/recurring.util';
 import { UpcomingReviewDto } from './dto/upcoming-review.dto';
 import { getRuleDescription } from '../common/review-rule.util';
-import { GroupedUpcomingReviewsDto } from './dto/grouped-upcoming-reviews.dto';
+import {
+  UpcomingReviewsResponseDto,
+  DateUpcomingReviewsDto,
+} from './dto/upcoming-reviews-response.dto';
 import { groupBy, map, sortBy } from 'lodash';
 import { ReviewLogicService } from '../review-logic/review-logic.service';
+import type { CourseSummaryDto } from '../study-records/dto/study-records-by-month-response.dto';
 
 /**
  * UpcomingReviewsService
@@ -34,7 +38,7 @@ export class UpcomingReviewsService {
   async getUpcomingReviews(
     userId: string,
     withinDays: number,
-  ): Promise<GroupedUpcomingReviewsDto[]> {
+  ): Promise<UpcomingReviewsResponseDto> {
     this.logger.log(
       `正在获取用户 ${userId} 在 ${withinDays} 天内的待复习项目。`,
     );
@@ -74,12 +78,12 @@ export class UpcomingReviewsService {
 
     if (!userWithData) {
       this.logger.warn(`未找到用户 ${userId} 的待复习项目。`);
-      return [];
+      return { courses: [], dates: [] };
     }
 
     const { studyRecords, reviewRules } = userWithData;
     if (!studyRecords.length || !reviewRules.length) {
-      return [];
+      return { courses: [], dates: [] };
     }
 
     const upcomingReviews: UpcomingReviewDto[] = [];
@@ -159,7 +163,7 @@ export class UpcomingReviewsService {
     );
 
     // 转换为最终的数据结构
-    const result: GroupedUpcomingReviewsDto[] = map(
+    const dateGroups: DateUpcomingReviewsDto[] = map(
       groupedByDate,
       (reviews, date) => {
         // 在每个日期下，再按课程ID分组
@@ -185,6 +189,16 @@ export class UpcomingReviewsService {
       },
     );
 
-    return sortBy(result, 'date'); // 按日期排序最终结果
+    const sortedDates = sortBy(dateGroups, 'date');
+
+    const courses: CourseSummaryDto[] = await this.prisma.course.findMany({
+      where: {
+        id: { in: Array.from(new Set(sortedReviews.map((r) => r.courseId))) },
+      },
+      select: { id: true, name: true, color: true, note: true },
+    });
+
+    // remove courseName/color from responses
+    return { courses, dates: sortedDates };
   }
 }

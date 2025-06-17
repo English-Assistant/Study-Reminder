@@ -8,7 +8,8 @@ import type { UpdateStudyRecordDto } from '@y/interface/study-records/dto/update
 import type { StudyRecord } from '@y/interface/common/prisma.type.ts'; // Assuming @prisma/client types are accessible
 import type { GetStudyRecordsDto } from '@y/interface/study-records/dto/get-study-records.dto.js';
 import type { GetStudyRecordsByMonthQueryDto } from '@y/interface/study-records/dto/get-study-records-by-month-query.dto.ts';
-import type { StudyRecordWithReviewsDto } from '@y/interface/study-records/dto/study-record-with-reviews.dto.ts';
+import type { StudyRecordsByMonthResponseDto } from '@y/interface/study-records/dto/study-records-by-month-response.dto.ts';
+import type { StudyRecordsByDaysResponseDto } from '@y/interface/study-records/dto/study-records-by-days-response.dto.ts';
 
 /**
  * 创建学习记录
@@ -25,7 +26,9 @@ export async function createStudyRecordApi(
 /**
  * 获取学习记录列表
  */
-export async function getAllStudyRecordsApi(params?: GetStudyRecordsDto) {
+export async function getAllStudyRecordsApi(
+  params?: GetStudyRecordsDto,
+): Promise<StudyRecordsByDaysResponseDto> {
   const response = await request.get<
     GlobalApiTypes<ReturnType<StudyRecordsController['findAll']>>
   >('/study-records', { params });
@@ -68,7 +71,7 @@ export async function deleteStudyRecordApi(id: string) {
  */
 export async function getStudyRecordsByMonthApi(
   params: GetStudyRecordsByMonthQueryDto,
-): Promise<StudyRecordWithReviewsDto[]> {
+): Promise<StudyRecordsByMonthResponseDto> {
   const response = await request.get<
     GlobalApiTypes<ReturnType<StudyRecordsController['getByMonth']>>
   >('/study-records/by-month', { params });

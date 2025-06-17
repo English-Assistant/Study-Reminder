@@ -3,7 +3,7 @@ import { UpcomingReviewsService } from './upcoming-reviews.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../auth/interfaces/authenticated-request.interface';
 import { GetUpcomingReviewsDto } from './dto/get-upcoming-reviews.dto';
-import { GroupedUpcomingReviewsDto } from './dto/grouped-upcoming-reviews.dto';
+import { UpcomingReviewsResponseDto } from './dto/upcoming-reviews-response.dto';
 
 /**
  * 未来待复习列表接口
@@ -22,7 +22,7 @@ export class UpcomingReviewsController {
   async getUpcomingReviews(
     @Req() req: AuthenticatedRequest,
     @Query() query: GetUpcomingReviewsDto,
-  ): Promise<GroupedUpcomingReviewsDto[]> {
+  ): Promise<UpcomingReviewsResponseDto> {
     const userId = req.user.id;
     return this.upcomingReviewsService.getUpcomingReviews(
       userId,

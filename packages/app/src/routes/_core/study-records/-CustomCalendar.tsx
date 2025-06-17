@@ -14,7 +14,7 @@ function isUpcomingReview(
   item: CalendarDisplayEvent,
 ): item is UpcomingReviewInRecordDto & { _key: string } {
   return (
-    'expectedReviewAt' in item && 'studyRecordId' in item && 'course' in item
+    'expectedReviewAt' in item && 'studyRecordId' in item && 'courseId' in item
   );
 }
 

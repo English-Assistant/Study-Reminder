@@ -21,6 +21,7 @@ import dayjs from 'dayjs';
 import CheckRecord from './-CheckRecord';
 import { StatisticCard } from './-StatisticCard';
 import { QuestionCircleOutlined } from '@ant-design/icons';
+import type { CourseSummaryDto } from '@y/interface/study-records/dto/study-records-by-month-response.dto.ts';
 
 const { Title } = Typography;
 
@@ -34,8 +35,8 @@ function DashboardComponent() {
     loading,
     data: [
       consecutiveDays,
-      studyRecords = [],
-      upcomingReviews = [],
+      studyRecordsResp,
+      upcomingResp,
       studyRecordsCount,
     ] = [],
   } = useRequest(
@@ -55,6 +56,20 @@ function DashboardComponent() {
       },
     },
   );
+
+  const studyRecords = studyRecordsResp?.groups || [];
+  const studyCourses = studyRecordsResp?.courses ?? [];
+
+  const upcomingDates = upcomingResp?.dates ?? [];
+  const upcomingCourses = upcomingResp?.courses ?? [];
+
+  const allCourses = [...studyCourses, ...upcomingCourses];
+
+  const coursesMap = (() => {
+    const map: Record<string, CourseSummaryDto> = {};
+    allCourses.forEach((c) => (map[c.id] = c));
+    return map;
+  })();
 
   return (
     <Spin spinning={loading} tip="加载中...">
@@ -78,7 +93,7 @@ function DashboardComponent() {
             <StatisticCard
               title="今日待复习"
               value={
-                upcomingReviews
+                upcomingDates
                   .find((f) => dayjs(f.date).isSame(dayjs(), 'day'))
                   ?.courses.reduce((acc, cur) => acc + cur.reviews.length, 0) ??
                 0
@@ -88,7 +103,7 @@ function DashboardComponent() {
             <StatisticCard
               title="待复习课程"
               value={
-                upcomingReviews
+                upcomingDates
                   .map((f) => f.courses.map((f) => f.reviews))
                   .flat(Infinity).length ?? 0
               }
@@ -99,7 +114,7 @@ function DashboardComponent() {
           <CheckRecord
             loading={loading}
             studyRecords={studyRecords}
-            upcomingReviews={upcomingReviews}
+            upcomingReviews={upcomingDates}
           />
         </div>
         <div className="flex flex-col gap-6">
@@ -108,9 +123,9 @@ function DashboardComponent() {
               7日待复习
             </Title>
 
-            {upcomingReviews && upcomingReviews.length > 0 ? (
+            {upcomingDates && upcomingDates.length > 0 ? (
               <Tabs
-                items={upcomingReviews.map((f) => {
+                items={upcomingDates.map((f) => {
                   return {
                     label: dayjs(f.date).isSame(dayjs(), 'day')
                       ? '今天'
@@ -156,10 +171,12 @@ function DashboardComponent() {
                             >
                               <div className="text-size-4 lh-6 font-600">
                                 <Badge
-                                  color={course.courseColor!}
+                                  color={
+                                    coursesMap[course.courseId]?.color || '#000'
+                                  }
                                   text={
                                     <span className="color-#444444 text-size-4 lh-6">
-                                      {course.courseName}
+                                      {coursesMap[course.courseId]?.name}
                                     </span>
                                   }
                                 />
@@ -238,9 +255,12 @@ function DashboardComponent() {
                               </div>
                               <Tag
                                 className="color-#6B7280 text-size-4 lh-5 my-3 px-1! mx--0.5"
-                                color={record.course.color!}
+                                color={
+                                  coursesMap[record.courseId]?.color ||
+                                  'default'
+                                }
                               >
-                                {record.course.name}
+                                {coursesMap[record.courseId]?.name}
                               </Tag>
                               <div className="color-#666666 lh-5.2 text-size-3.5">
                                 {dayjs(record.studiedAt).format('HH:mm')}

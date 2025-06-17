@@ -2,14 +2,13 @@ import { createFileRoute } from '@tanstack/react-router';
 import { Form, Spin, App } from 'antd';
 import type { Dayjs } from 'dayjs';
 import dayjs from 'dayjs';
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { EntryFormModal } from './-EntryFormModal';
 import { CustomCalendar } from './-CustomCalendar';
 import { getStudyRecordsByMonthApi } from '@/apis/study-records';
-import type {
-  StudyRecordWithReviewsDto,
-  UpcomingReviewInRecordDto,
-} from '@y/interface/study-records/dto/study-record-with-reviews.dto.ts';
+import type { CourseSummaryDto } from '@y/interface/study-records/dto/study-records-by-month-response.dto.ts';
+import { useRequest } from 'ahooks';
+import { SubItem } from './-SubItem';
 
 interface EntryFormValues {
   title: string;
@@ -19,8 +18,10 @@ interface EntryFormValues {
 }
 
 // import type { ManualReviewEntryDto } from '@y/interface/manual-review-entries-module/dto/manual-review-entry.dto.ts'; // 暂时注释
-import { useRequest } from 'ahooks';
-import { SubItem } from './-SubItem';
+import type {
+  StudyRecordWithReviewsDto,
+  UpcomingReviewInRecordDto,
+} from '@y/interface/study-records/dto/study-record-with-reviews.dto.ts';
 
 export type CalendarDisplayEvent = (
   | Omit<StudyRecordWithReviewsDto, 'upcomingReviewsInMonth'>
@@ -47,12 +48,12 @@ function AddCourseComponent() {
   );
 
   const {
-    data: monthlyData = [],
+    data: monthlyResp,
     loading: loadingEntries,
     refresh: refreshMonthlyData,
   } = useRequest(
     async () => {
-      if (!currentDisplayMonth) return [];
+      if (!currentDisplayMonth) return { courses: [], records: [] };
       return getStudyRecordsByMonthApi({
         year: currentDisplayMonth.year(),
         month: currentDisplayMonth.month() + 1,
@@ -66,7 +67,19 @@ function AddCourseComponent() {
     },
   );
 
-  const calendarEvents = useMemo((): CalendarDisplayEvent[] => {
+  const monthlyData = monthlyResp?.records ?? [];
+
+  const courses = monthlyResp?.courses ?? [];
+
+  const coursesMap = (() => {
+    const map: Record<string, CourseSummaryDto> = {};
+    courses.forEach((c) => {
+      map[c.id] = c;
+    });
+    return map;
+  })();
+
+  const calendarEvents = ((): CalendarDisplayEvent[] => {
     const events: CalendarDisplayEvent[] = [];
     monthlyData.forEach((record) => {
       // 添加学习记录 - 移除 upcomingReviewsInMonth 属性
@@ -82,7 +95,7 @@ function AddCourseComponent() {
       });
     });
     return events;
-  }, [monthlyData]);
+  })();
 
   const [entryForm] = Form.useForm<EntryFormValues>();
 
@@ -128,6 +141,7 @@ function AddCourseComponent() {
         entriesForDate={entriesForDate}
         handleOpenEditModal={handleOpenEditModal}
         monthlyData={monthlyData}
+        coursesMap={coursesMap}
       ></SubItem>
     );
   };

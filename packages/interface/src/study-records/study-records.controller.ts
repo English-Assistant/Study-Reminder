@@ -19,8 +19,8 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from 'src/auth/interfaces/authenticated-request.interface';
 import { GetStudyRecordsDto } from './dto/get-study-records.dto';
 import { GetStudyRecordsByMonthQueryDto } from './dto/get-study-records-by-month-query.dto';
-import { StudyRecordWithReviewsDto } from './dto/study-record-with-reviews.dto';
-import { GroupedStudyRecordsDto } from './dto/grouped-study-records.dto';
+import { StudyRecordsByMonthResponseDto } from './dto/study-records-by-month-response.dto';
+import { StudyRecordsByDaysResponseDto } from './dto/study-records-by-days-response.dto';
 
 @UseGuards(JwtAuthGuard)
 @Controller('study-records')
@@ -52,7 +52,7 @@ export class StudyRecordsController {
   findAll(
     @Req() req: AuthenticatedRequest,
     @Query() query: GetStudyRecordsDto,
-  ): Promise<GroupedStudyRecordsDto[]> {
+  ): Promise<StudyRecordsByDaysResponseDto> {
     const userId = req.user.id;
     return this.studyRecordsService.findAllByUserId(
       userId,
@@ -87,7 +87,7 @@ export class StudyRecordsController {
   async getByMonth(
     @Req() req: AuthenticatedRequest,
     @Query() query: GetStudyRecordsByMonthQueryDto,
-  ): Promise<StudyRecordWithReviewsDto[]> {
+  ): Promise<StudyRecordsByMonthResponseDto> {
     const userId = req.user.id;
     return this.studyRecordsService.getStudyRecordsAndReviewsByMonth(
       userId,

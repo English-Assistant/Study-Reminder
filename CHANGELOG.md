@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.19.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.18.0...v1.19.0) (2025-06-17)
+
+
+### Features
+
+* 更新学习记录和即将复习接口，重构数据结构以支持按天和按月的学习记录响应，优化课程信息的获取和展示逻辑 ([c42dddf](https://github.com/English-Assistant/Study-Reminder/commit/c42dddf29573bcaadf8fcdfab63868c2bc15331d))
+
 ## [1.18.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.17.0...v1.18.0) (2025-06-15)
 
 

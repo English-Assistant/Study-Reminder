@@ -115,15 +115,3 @@ jobs:
             echo "   docker push boses/study-reminder-front:${VERSION_NO_V}"
             echo "   docker push boses/study-reminder-backend:${VERSION_NO_V}"
           fi
-
-      # 触发服务器部署
-      - name: Trigger Deploy
-        if: steps.check-credentials.outputs.has_credentials == 'true'
-        run: |
-          VERSION="${{ needs.release-please.outputs.tag_name }}"
-          VERSION_NO_V="${VERSION#v}"
-
-          curl -X POST "${{ secrets.DEPLOY_SERVER_URL }}" \
-            -H "Authorization: Bearer ${{ secrets.DEPLOY_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            -d "{\"tag\": \"${VERSION_NO_V}\"}"

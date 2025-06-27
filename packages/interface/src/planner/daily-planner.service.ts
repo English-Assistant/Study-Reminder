@@ -11,7 +11,6 @@ import {
   REVIEW_REMINDER_QUEUE,
   JOB_NAME_SEND_REVIEW,
 } from '../queue/queue.constants';
-import { ensureFutureRecurringTime } from '../common/utils/recurring.util';
 
 dayjs.extend(duration);
 
@@ -68,19 +67,38 @@ export class DailyPlannerService {
       // 遍历所有学习记录和规则，计算每条记录的下次复习时间
       for (const record of user.studyRecords) {
         for (const rule of user.reviewRules) {
-          let reviewTime = this.reviewLogic.calculateNextReviewTime(
-            record.studiedAt,
-            rule,
-          );
-          reviewTime = ensureFutureRecurringTime(reviewTime, rule, now);
+          let nextReviewTime = dayjs(record.studiedAt);
+
+          // 对于循环规则，我们需要模拟历史，找到第一个在未来的复习时间
+          if (rule.mode === 'RECURRING') {
+            while (nextReviewTime.isBefore(now)) {
+              nextReviewTime = this.reviewLogic.addInterval(
+                nextReviewTime,
+                rule.value,
+                rule.unit,
+              );
+            }
+          } else {
+            // 对于 ONCE 规则，直接计算一次
+            nextReviewTime = this.reviewLogic.addInterval(
+              nextReviewTime,
+              rule.value,
+              rule.unit,
+            );
+          }
+
           const sendTime = this.reviewLogic.adjustTimeForWindows(
-            reviewTime,
+            nextReviewTime,
             user.studyTimeWindows,
           );
 
+          // 确保计算出的时间在我们的调度窗口内
           if (sendTime.isAfter(now) && sendTime.isBefore(end)) {
-            const jobId = `${user.id}:${record.id}:${rule.id}:${sendTime.valueOf()}`;
+            const jobId = `${user.id}:${
+              record.id
+            }:${rule.id}:${sendTime.valueOf()}`;
             const delay = sendTime.diff(now);
+
             await this.queue.add(
               JOB_NAME_SEND_REVIEW,
               {
@@ -98,10 +116,10 @@ export class DailyPlannerService {
               textTitle: record.textTitle,
               courseId: record.courseId,
               courseName: record.course?.name,
-              expectedReviewAt: reviewTime.toISOString(),
+              expectedReviewAt: nextReviewTime.toISOString(),
               ruleId: rule.id,
             });
-            await redisClient.zadd(cacheKey, reviewTime.valueOf(), member);
+            await redisClient.zadd(cacheKey, nextReviewTime.valueOf(), member);
           }
         }
       }

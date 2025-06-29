@@ -67,59 +67,62 @@ export class DailyPlannerService {
       // 遍历所有学习记录和规则，计算每条记录的下次复习时间
       for (const record of user.studyRecords) {
         for (const rule of user.reviewRules) {
-          let nextReviewTime = dayjs(record.studiedAt);
+          let nextReviewTime = this.reviewLogic.calculateNextReviewTime(
+            record.studiedAt,
+            rule,
+          );
 
-          // 对于循环规则，我们需要模拟历史，找到第一个在未来的复习时间
-          if (rule.mode === 'RECURRING') {
-            while (nextReviewTime.isBefore(now)) {
-              nextReviewTime = this.reviewLogic.addInterval(
+          // 不断计算下一次复习时间，直到它超出我们的调度窗口
+          while (nextReviewTime.isBefore(end)) {
+            // 只有在未来的、且在窗口内的任务才需要被调度
+            if (nextReviewTime.isAfter(now)) {
+              const sendTime = this.reviewLogic.adjustTimeForWindows(
                 nextReviewTime,
-                rule.value,
-                rule.unit,
+                user.studyTimeWindows,
+              );
+
+              const jobId = `${user.id}:${
+                record.id
+              }:${rule.id}:${sendTime.valueOf()}`;
+              const delay = sendTime.diff(now);
+              await this.queue.add(
+                JOB_NAME_SEND_REVIEW,
+                {
+                  userId: user.id,
+                  studyRecordId: record.id,
+                  ruleId: rule.id,
+                  itemName: record.textTitle,
+                  courseName: record.course?.name || '未知课程',
+                },
+                { jobId, delay, removeOnComplete: true, removeOnFail: true },
+              );
+
+              const member = JSON.stringify({
+                studyRecordId: record.id,
+                textTitle: record.textTitle,
+                courseId: record.courseId,
+                courseName: record.course?.name,
+                expectedReviewAt: nextReviewTime.toISOString(),
+                ruleId: rule.id,
+              });
+              await redisClient.zadd(
+                cacheKey,
+                nextReviewTime.valueOf(),
+                member,
               );
             }
-          } else {
-            // 对于 ONCE 规则，直接计算一次
+
+            // 如果不是循环规则，计算一次就够了
+            if (rule.mode !== 'RECURRING') {
+              break;
+            }
+
+            // 准备下一次循环
             nextReviewTime = this.reviewLogic.addInterval(
               nextReviewTime,
               rule.value,
               rule.unit,
             );
-          }
-
-          const sendTime = this.reviewLogic.adjustTimeForWindows(
-            nextReviewTime,
-            user.studyTimeWindows,
-          );
-
-          // 确保计算出的时间在我们的调度窗口内
-          if (sendTime.isAfter(now) && sendTime.isBefore(end)) {
-            const jobId = `${user.id}:${
-              record.id
-            }:${rule.id}:${sendTime.valueOf()}`;
-            const delay = sendTime.diff(now);
-
-            await this.queue.add(
-              JOB_NAME_SEND_REVIEW,
-              {
-                userId: user.id,
-                studyRecordId: record.id,
-                ruleId: rule.id,
-                itemName: record.textTitle,
-                courseName: record.course?.name || '未知课程',
-              },
-              { jobId, delay, removeOnComplete: true, removeOnFail: true },
-            );
-
-            const member = JSON.stringify({
-              studyRecordId: record.id,
-              textTitle: record.textTitle,
-              courseId: record.courseId,
-              courseName: record.course?.name,
-              expectedReviewAt: nextReviewTime.toISOString(),
-              ruleId: rule.id,
-            });
-            await redisClient.zadd(cacheKey, nextReviewTime.valueOf(), member);
           }
         }
       }

@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.22.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.21.0...v1.22.0) (2025-06-30)
+
+
+### Features
+
+* 增强复习任务调度逻辑，支持按发送时间分组和合并任务，优化队列添加逻辑 ([3d77c70](https://github.com/English-Assistant/Study-Reminder/commit/3d77c70bfa4d57c34a22a1a6dea78b38742c2fd7))
+
 ## [1.21.0](https://github.com/English-Assistant/Study-Reminder/compare/v1.20.0...v1.21.0) (2025-06-29)
 
 

@@ -11,6 +11,7 @@ import {
   REVIEW_REMINDER_QUEUE,
   JOB_NAME_SEND_REVIEW,
 } from '../queue/queue.constants';
+import { ReviewItem } from '../notifications/types/review-item.type';
 
 dayjs.extend(duration);
 
@@ -64,6 +65,8 @@ export class DailyPlannerService {
       const cacheKey = `upcoming:${user.id}`;
       await redisClient.del(cacheKey); // 重建
 
+      const allReviewItems: (ReviewItem & { sendTime: dayjs.Dayjs })[] = [];
+
       // 遍历所有学习记录和规则，计算每条记录的下次复习时间
       for (const record of user.studyRecords) {
         for (const rule of user.reviewRules) {
@@ -81,21 +84,12 @@ export class DailyPlannerService {
                 user.studyTimeWindows,
               );
 
-              const jobId = `${user.id}:${
-                record.id
-              }:${rule.id}:${sendTime.valueOf()}`;
-              const delay = sendTime.diff(now);
-              await this.queue.add(
-                JOB_NAME_SEND_REVIEW,
-                {
-                  userId: user.id,
-                  studyRecordId: record.id,
-                  ruleId: rule.id,
-                  itemName: record.textTitle,
-                  courseName: record.course?.name || '未知课程',
-                },
-                { jobId, delay, removeOnComplete: true, removeOnFail: true },
-              );
+              allReviewItems.push({
+                itemName: record.textTitle,
+                courseName: record.course?.name || '未知课程',
+                time: nextReviewTime.format('HH:mm'),
+                sendTime,
+              });
 
               const member = JSON.stringify({
                 studyRecordId: record.id,
@@ -126,6 +120,57 @@ export class DailyPlannerService {
           }
         }
       }
+
+      // 按发送时间排序
+      allReviewItems.sort(
+        (a, b) => a.sendTime.valueOf() - b.sendTime.valueOf(),
+      );
+
+      // 5分钟滚动合并
+      const taskGroups: (ReviewItem & { sendTime: dayjs.Dayjs })[][] = [];
+      if (allReviewItems.length > 0) {
+        let currentGroup: (ReviewItem & { sendTime: dayjs.Dayjs })[] = [
+          allReviewItems[0],
+        ];
+        taskGroups.push(currentGroup);
+
+        for (let i = 1; i < allReviewItems.length; i++) {
+          const prevItem = allReviewItems[i - 1];
+          const currentItem = allReviewItems[i];
+          if (currentItem.sendTime.diff(prevItem.sendTime, 'minute') <= 5) {
+            currentGroup.push(currentItem);
+          } else {
+            currentGroup = [currentItem];
+            taskGroups.push(currentGroup);
+          }
+        }
+      }
+
+      // 将分组后的任务添加到队列
+      for (const group of taskGroups) {
+        if (group.length === 0) continue;
+        const firstItem = group[0];
+        const sendTime = firstItem.sendTime;
+        const delay = sendTime.diff(now);
+
+        // 避免负延迟
+        if (delay < 0) continue;
+
+        // 移除临时的 sendTime 属性
+        const items: ReviewItem[] = group.map((item) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { sendTime, ...rest } = item;
+          return rest;
+        });
+
+        const jobId = `${user.id}:${sendTime.valueOf()}`;
+        await this.queue.add(
+          JOB_NAME_SEND_REVIEW,
+          { userId: user.id, items },
+          { jobId, delay, removeOnComplete: true, removeOnFail: true },
+        );
+      }
+
       await redisClient.expire(cacheKey, this.CACHE_TTL_SEC);
     }
 
